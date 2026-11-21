@@ -46,10 +46,10 @@ for (const t of TIMES) {
   const r = await page.evaluate(() => {
     const S = window.__sim.getState();
     const g = window.__sim.grid;
-    const vis = e => e && getComputedStyle(e).display !== 'none' && e.offsetParent !== null;
+    const vis = e => e && getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden' && e.offsetParent !== null;
     const rect = e => { const b = e.getBoundingClientRect(); return { x0: b.left, y0: b.top, x1: b.right, y1: b.bottom }; };
     const labels = [...document.querySelectorAll('.lbl')].filter(vis).map(e => ({ id: e.dataset.unit, ...rect(e) }));
-    const panels = ['.top', '.kpi', '.legend', '.events', '.detail .hdr', '.detail .body', '.detail .thumb', '.split', '.caption > span', '.tracker']
+    const panels = ['.hdr3', '.rail3', '.ops3', '.events', '.detail .hdr', '.detail .body', '.detail .thumb', '.split', '.compare', '.caption > span', '.tracker']
       .flatMap(sel => [...document.querySelectorAll(sel)].filter(vis).map(e => ({ sel, ...rect(e) })));
     const focus = S.focusUnits.map(id => ({ id, p: window.__sim.projectAnchor(id, 'focus') }));
     const active = document.querySelectorAll('.stp.active').length;

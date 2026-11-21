@@ -109,6 +109,7 @@ const overlay = new Overlay(stage, FILM, {
   toggle(name) { toggles[name] = !toggles[name]; },
   setLang(l) { lang = l; document.documentElement.lang = l; },
   cycleLight() { lightMode = nextLightMode(lightMode); },
+  clearSelection() { userSel = null; },
 });
 
 function startBlend(): void {
@@ -216,7 +217,7 @@ function applyFrame(time: number): SimState {
     controls: { playing, speed, loop, t: state.t, duration: DURATION, mode },
   }, plant, rig.camera);
 
-  render(SOCIAL ? null : sel);
+  render(SOCIAL || !overlay.thumbVisible ? null : sel);
   lastState = state;
   lastSelected = sel;
   return state;

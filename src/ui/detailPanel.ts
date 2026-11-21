@@ -7,78 +7,98 @@ import type { SimState } from '../sim/state';
 import { buildDetail, buildSplit } from '../sim/selectors';
 import { tr, type Lang } from './i18n';
 import { el, setClass, setStyle, setText } from './styles';
+import { icon } from './shell';
+import { UNIT_BY_ID } from '../plant/layout';
+import { fmtClock } from '../sim/signals';
 
+export type InspTab = 'general' | 'design' | 'operation';
+
+/** Inspector de equipos (SPEC v3 §7): encabezado, vista existente, pestañas General · Diseño · Operación. */
 export class DetailPanel {
   readonly root: HTMLElement;
-  private cap: HTMLElement;
-  private stageCap: HTMLElement;
   private ph: HTMLElement;
-  private body: HTMLElement;
-  private nm: HTMLElement;
-  private tagid: HTMLElement;
-  private chips: HTMLElement;
+  private nm: HTMLElement; private tagid: HTMLElement; private chips: HTMLElement;
   private fn: HTMLElement; private flow: HTMLElement; private role: HTMLElement;
   private kFn: HTMLElement; private kFlow: HTMLElement; private kRole: HTMLElement;
   private kVol: HTMLElement; private vol: HTMLElement; private kHrt: HTMLElement; private hrt: HTMLElement;
   private volB: HTMLElement; private hrtB: HTMLElement;
-  private note: HTMLElement;
-  private factsWrap: HTMLElement; private factsCap: HTMLElement; private factsGrid: HTMLElement;
+  private factsCap: HTMLElement; private factsGrid: HTMLElement; private dims: HTMLElement;
+  private opGrid: HTMLElement; private opEv: HTMLElement;
   private factsKey = '';
-  private foot: HTMLElement;
-  private empty: HTMLElement;
-  private filled: HTMLElement;
+  private foot: HTMLElement; private empty: HTMLElement; private filled: HTMLElement;
+  private tabsEl: HTMLElement; private tabs: { k: InspTab; b: HTMLButtonElement }[] = [];
+  private secs: Record<InspTab, HTMLElement>;
   private lastKey = '';
+  tab: InspTab = 'general';
   /** Unidad mostrada (para el gancho de validación). */
   shown: UnitId | null = null;
 
-  constructor(parent: HTMLElement) {
-    this.root = el('div', 'detail', parent);
+  constructor(parent: HTMLElement, private film = false, onClose: () => void = () => {}) {
+    this.root = el('aside', 'detail insp3', parent);
     this.root.dataset.role = 'detail';
-    const hdr = el('div', 'panel hdr', this.root);
-    hdr.style.position = 'absolute'; hdr.style.left = '0'; hdr.style.top = '0'; hdr.style.width = '320px';
-    const row = el('div', 'row', hdr);
-    this.cap = el('div', 'cap', row);
-    this.stageCap = el('div', 'cap mono', row);
-    el('div', 'frameL', this.root);
-    el('div', 'frameR', this.root);
+    const hdr = el('div', 'hdr', this.root);
+    const ht = el('div', 'ht', hdr);
+    this.nm = el('div', 'nm', ht);
+    this.nm.dataset.role = 'detail-name';
+    const tl = el('div', 'tagline', ht);
+    this.tagid = el('span', 'tagid mono', tl);
+    this.tagid.dataset.role = 'detail-tag';
+    this.chips = el('div', 'chips', tl);
+    if (!film) {
+      const x = el('button', 'ib sm pe', hdr) as HTMLButtonElement;
+      x.type = 'button'; x.innerHTML = icon('close'); x.setAttribute('aria-label', 'Cerrar inspector'); x.dataset.tip = 'Cerrar';
+      x.onclick = onClose;
+    }
     const thumb = el('div', 'thumb', this.root);
     this.ph = el('div', 'ph', thumb);
-    this.body = el('div', 'panel body', this.root);
+    this.tabsEl = el('div', 'itabs pe', this.root);
+    this.tabsEl.setAttribute('role', 'tablist');
+    for (const k of ['general', 'design', 'operation'] as InspTab[]) {
+      const b = el('button', 'itab', this.tabsEl) as HTMLButtonElement;
+      b.type = 'button'; b.setAttribute('role', 'tab');
+      b.onclick = () => { this.tab = k; };
+      this.tabs.push({ k, b });
+    }
+    this.body = el('div', 'body', this.root);
     this.empty = el('div', 'empty', this.body);
     this.filled = el('div', '', this.body);
-    this.nm = el('div', 'nm', this.filled);
-    this.nm.dataset.role = 'detail-name';
-    const tl = el('div', 'tagline', this.filled);
-    this.tagid = el('span', 'tagid', tl);
-    this.tagid.dataset.role = 'detail-tag';
-    this.chips = el('div', 'chips', this.filled);
-    const kv = el('div', 'kv', this.filled);
+    const g = el('section', 'isec', this.filled);
+    const kv = el('div', 'kv', g);
     this.kFn = el('div', 'k', kv); this.fn = el('div', 'v', kv);
     this.kFlow = el('div', 'k', kv); this.flow = el('div', 'v big', kv);
     this.kRole = el('div', 'k', kv); this.role = el('div', 'v', kv);
-    const kv2 = el('div', 'kv2', this.filled);
-    const a = el('div', '', kv2), b = el('div', '', kv2);
+    const kv2 = el('div', 'kv2', g);
+    const a = el('div', '', kv2), b2 = el('div', '', kv2);
     this.kVol = el('div', 'cap', a); const va = el('div', 'vrow', a); this.vol = el('span', 'v', va); this.volB = el('span', 'cls', va);
-    this.kHrt = el('div', 'cap', b); const vb = el('div', 'vrow', b); this.hrt = el('span', 'v', vb); this.hrtB = el('span', 'cls', vb);
-    this.note = el('div', 'note', this.filled);
-    this.factsWrap = el('div', 'facts', this.filled);
-    this.factsCap = el('div', 'k', this.factsWrap);
-    this.factsGrid = el('div', 'fgrid', this.factsWrap);
-    this.foot = el('div', 'foot', this.body);
+    this.kHrt = el('div', 'cap', b2); const vb = el('div', 'vrow', b2); this.hrt = el('span', 'v', vb); this.hrtB = el('span', 'cls', vb);
+    const d = el('section', 'isec facts', this.filled);
+    this.factsCap = el('div', 'k', d);
+    this.factsGrid = el('div', 'fgrid', d);
+    this.dims = el('div', 'dims', d);
+    const o = el('section', 'isec', this.filled);
+    this.opGrid = el('div', 'opg', o);
+    this.opEv = el('div', 'opev', o);
+    this.secs = { general: g, design: d, operation: o };
+    this.foot = el('div', 'foot', this.root);
   }
+  private body: HTMLElement;
 
   update(state: SimState, selected: UnitId | null, lang: Lang): void {
     const d = buildDetail(state, selected, lang);
     this.shown = d ? d.id : null;
-    setText(this.cap, tr('detail', lang));
-    setText(this.stageCap, d ? d.tag : '—');
+    const es = lang === 'es';
     setStyle(this.ph, 'display', d ? 'none' : 'flex');
     setText(this.ph, tr('none_selected', lang));
     setStyle(this.empty, 'display', d ? 'none' : 'block');
     setStyle(this.filled, 'display', d ? 'block' : 'none');
     setText(this.empty, tr('hint_click', lang));
     setText(this.foot, tr('cls_legend', lang));
-    if (!d) return;
+    const names: Record<InspTab, string> = { general: 'General', design: es ? 'Diseño' : 'Design', operation: es ? 'Operación' : 'Operation' };
+    for (const t of this.tabs) { setText(t.b, names[t.k]); setClass(t.b, 'on', this.tab === t.k); t.b.setAttribute('aria-selected', String(this.tab === t.k)); }
+    // Película: sin pestañas, General + Diseño apilados (determinista, como antes).
+    setStyle(this.tabsEl, 'display', this.film || !d ? 'none' : 'flex');
+    for (const k of Object.keys(this.secs) as InspTab[]) setStyle(this.secs[k], 'display', this.film ? (k === 'operation' ? 'none' : 'block') : (this.tab === k ? 'block' : 'none'));
+    if (!d) { setText(this.nm, tr('detail', lang)); setText(this.tagid, '—'); this.chips.textContent = ''; this.lastKey = ''; return; }
     this.root.dataset.unit = d.id;
     setText(this.nm, d.name);
     setText(this.tagid, d.tag);
@@ -86,7 +106,7 @@ export class DetailPanel {
     if (key !== this.lastKey) {
       this.lastKey = key;
       this.chips.textContent = '';
-      for (const c of d.tags) el('span', `chip ${c.key}`, this.chips, c.text);
+      for (const c of d.tags.filter(c => c.key === 'active' || c.key === 'standby')) el('span', `chip ${c.key}`, this.chips, c.text);
     }
     setText(this.kFn, tr('d_function', lang)); setText(this.fn, d.fn);
     setText(this.kFlow, tr('d_flow', lang)); setText(this.flow, d.flowText);
@@ -97,10 +117,7 @@ export class DetailPanel {
     setClass(this.hrt, 'nd', d.hrtCls == null);
     badge(this.volB, d.volumeCls, lang);
     badge(this.hrtB, d.hrtCls, lang);
-    setText(this.note, '');
-    setStyle(this.note, 'display', 'none');
     this.hrt.title = d.hrtNote;
-    // Tabla de supuestos/cálculos (se reconstruye solo si cambia la unidad o el idioma).
     const fk = `${d.id}|${lang}`;
     if (fk !== this.factsKey) {
       this.factsKey = fk;
@@ -116,9 +133,33 @@ export class DetailPanel {
         const bb = el('span', `cls ${f.cls}`, vr, f.cls);
         bb.title = f.basis;
       }
+      if (!d.facts.length) el('div', 'nodata', this.factsGrid, es ? 'Sin parámetros adicionales declarados.' : 'No additional parameters declared.');
+      // Dimensiones del modelo 3D (layout.ts): hipótesis geométrica, clase S.
+      const sz = UNIT_BY_ID[d.id].size;
+      const parts = sz.d != null ? [`Ø ${sz.d} m`, `h ${sz.h} m`] : [`${sz.w} × ${sz.l} m`, `h ${sz.h} m`];
+      this.dims.innerHTML = '';
+      el('span', 'k', this.dims, es ? 'Dimensiones del modelo' : 'Model dimensions');
+      el('span', 'v mono', this.dims, parts.join(' · '));
+      el('span', 'cls S', this.dims, 'S');
     }
-    setStyle(this.factsWrap, 'display', d.facts.length ? 'block' : 'none');
     setText(this.factsCap, tr('d_facts', lang));
+    // Operación: variables simuladas de la unidad y eventos que la mencionan por su código.
+    const us = state.units[d.id];
+    const pct = (x: number | undefined) => `${Math.round(100 * (x ?? 0))} %`;
+    const okey = `${d.id}|${lang}|${us?.status}|${pct(us?.flow)}|${pct(us?.motion)}|${state.alerts.length}`;
+    if (this.opGrid.dataset.k !== okey) {
+      this.opGrid.dataset.k = okey;
+      this.opGrid.textContent = '';
+      const row = (k: string, v: string) => { const r = el('div', 'or', this.opGrid); el('span', 'k', r, k); el('span', 'v', r, v); };
+      row(es ? 'Estado' : 'Status', d.active ? (es ? 'En funcionamiento' : 'Running') : (es ? 'En espera' : 'Standby'));
+      row(es ? 'Nivel de flujo (simulado)' : 'Flow level (simulated)', pct(us?.flow));
+      row(es ? 'Actividad interna (simulada)' : 'Internal activity (simulated)', pct(us?.motion));
+      this.opEv.textContent = '';
+      el('div', 'k', this.opEv, es ? 'Eventos asociados' : 'Related events');
+      const evs = state.alerts.filter(a => a.text.es.includes(d.tag)).slice(-4).reverse();
+      if (!evs.length) el('div', 'nodata', this.opEv, es ? 'Sin eventos de esta unidad hasta ahora.' : 'No events for this unit so far.');
+      for (const a of evs) { const r = el('div', 'oe', this.opEv); el('span', 'mono', r, fmtClock(a.t)); el('span', '', r, a.text[lang]); }
+    }
   }
 }
 

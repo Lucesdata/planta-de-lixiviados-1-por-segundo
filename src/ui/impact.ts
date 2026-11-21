@@ -124,10 +124,18 @@ export class CompareCard {
     this.foot = el('div', 'note', this.root);
   }
   update(state: SimState, lang: Lang): void {
-    const t = state.t;
-    this.visible = t >= 37.5;
+    this.visible = state.t >= 37.5;
     setStyle(this.root, 'display', this.visible ? 'block' : 'none');
-    if (!this.visible) return;
+    if (this.visible) this.fill(state, lang);
+  }
+  /** Modo análisis: muestra la tarjeta con los valores del instante actual, sin esperar al guion. */
+  forceUpdate(state: SimState, lang: Lang): void {
+    this.visible = true;
+    setStyle(this.root, 'display', 'block');
+    this.fill(state, lang);
+  }
+  private fill(state: SimState, lang: Lang): void {
+    const t = state.t;
     const n = impactAt(t);
     setText(this.cap, lang === 'es' ? 'Antes · Después' : 'Before · After');
     setText(this.delta, `−${fmt(n.removalPct, 0, lang)} % DQO`);

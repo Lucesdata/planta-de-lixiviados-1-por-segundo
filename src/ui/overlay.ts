@@ -1,29 +1,28 @@
 /**
- * Overlay HTML del escenario 16:9: barra superior, KPI, leyenda/toggles, eventos, detalle,
- * reparto UASB, subtítulo, controles, rastreador, etiquetas y cursor guionizado.
- * Todo lo visible es función de (SimState, contexto) → determinista en modo película.
+ * Overlay HTML del escenario 16:9 — SPEC v3.0 «Light Industrial Interface».
+ * Header, rail, panel de operación, inspector, toolbar 3D, timeline, eventos y documentación son capas sobre el
+ * canvas: el canvas, la cámara y la simulación no cambian. Todo lo visible es función de (SimState, contexto, UiState).
  */
 import * as THREE from 'three';
-import type { Plant, UnitId, LineKind } from '../plant/types';
+import type { Plant, UnitId } from '../plant/types';
 import type { SimState } from '../sim/state';
-import { LINE_COLORS } from '../plant/processFlow';
 import { CLICKS } from '../motion/timeline';
-import { fmtClock, ramp } from '../sim/signals';
-import { TITLE, tr, type Lang, type I18nKey } from './i18n';
+import { ramp } from '../sim/signals';
+import { tr, type Lang, type I18nKey } from './i18n';
 import { CSS, el, setClass, setStyle, setText, type Rect } from './styles';
-import { KpiPanel } from './kpis';
-import { AlertLog } from './alerts';
-import { ProcessTracker } from './processTracker';
 import { DetailPanel, SplitCard } from './detailPanel';
 import { LabelLayer } from './labels';
-import { ImpactPanel, CompareCard } from './impact';
-import { Controls, type CamMode, type ControlsHandlers, type ControlsState } from './controls';
+import { CompareCard } from './impact';
+import type { CamMode, ControlsState } from './controls';
+import {
+  DocsPanel, EventDrawer, Header, LAYER_KEYS, OpsPanel, Popover, Rail, Timeline, Toolbar, defaultUi,
+  type ShellHandlers, type UiState, type View,
+} from './shell';
 
 export interface Toggles { pipes: boolean; labels: boolean; flow: boolean; sludge: boolean; actors: boolean }
 
-export interface OverlayHandlers extends ControlsHandlers {
-  setLang(l: Lang): void;
-  cycleLight(): void;
+export interface OverlayHandlers extends ShellHandlers {
+  step(dt: number): void;
 }
 
 export interface OverlayCtx {
@@ -34,101 +33,60 @@ export interface OverlayCtx {
   controls: ControlsState;
   /** Zonas de pantalla (px 1920×1080) que las etiquetas no deben cubrir. */
   obstacles?: Rect[];
-  /** Camiones visibles (posición de mundo del techo) para etiquetas pequeñas. */
+  /** Camiones visibles (no se rotulan desde D-59; se conserva la interfaz). */
   trucks?: { kind: 'chemical' | 'sludge'; pos: THREE.Vector3 }[];
 }
-
-const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 export class Overlay {
   readonly root: HTMLElement;
   readonly labels: LabelLayer;
   readonly detail: DetailPanel;
-  private kpis: KpiPanel;
-  private alerts: AlertLog;
-  private tracker: ProcessTracker;
+  readonly ui: UiState = defaultUi();
+  /** La miniatura del inspector solo se dibuja si el inspector está visible. */
+  thumbVisible = false;
+  private header: Header;
+  private rail: Rail;
+  private ops: OpsPanel;
+  private tool: Toolbar | null;
+  private timeline: Timeline;
+  private events: EventDrawer;
+  private docs: DocsPanel;
+  private layersPop: Popover;
+  private settingsPop: Popover;
   private split: SplitCard;
-  private impact: ImpactPanel;
   private compare: CompareCard;
-  private controls: Controls | null;
-  private top: { origin: HTMLElement; modeK: HTMLElement; modeV: HTMLElement; clockK: HTMLElement; clockV: HTMLElement; clockN: HTMLElement; stK: HTMLElement; pill: HTMLElement; pillT: HTMLElement; phK: HTMLElement; phV: HTMLElement };
-  private legend: { cap: HTMLElement; foot: HTMLElement; items: { key: I18nKey; t: HTMLElement }[]; tgs: { name: keyof Toggles | 'lang' | 'light'; b: HTMLButtonElement }[] };
   private caption: { wrap: HTMLElement; b: HTMLElement; s: HTMLElement };
   private cursor: { root: HTMLElement; arrow: SVGSVGElement; rip: HTMLElement };
   private v = new THREE.Vector3();
+  private lastSel: UnitId | null = null;
+  private ctxToggles: Toggles | null = null;
+  private lang: Lang = 'es';
+  private lightName = '';
 
-  constructor(stage: HTMLElement, film: boolean, h: OverlayHandlers) {
+  constructor(stage: HTMLElement, private film: boolean, h: OverlayHandlers) {
     if (!document.getElementById('ptl-css')) {
       const st = document.createElement('style');
       st.id = 'ptl-css';
       st.textContent = CSS;
       document.head.appendChild(st);
     }
-    this.root = el('div', 'ov', stage);
-
-    // Etiquetas y cursor bajo los paneles (los paneles se dibujan encima).
+    this.root = el('div', 'ov v3', stage);
+    // Etiquetas y cursor bajo los paneles.
     this.labels = new LabelLayer(this.root);
 
-    // Barra superior
-    const top = el('div', 'panel top', this.root);
-    el('div', 'title', top, TITLE);
-    const origin = el('div', 'origin', top);
-    el('div', 'sp', top);
-    const blk = (cls = '') => el('div', `blk ${cls}`, top);
-    const ph = blk(); const phK = el('div', 'cap', ph); const phV = el('div', 'v', ph);
-    const md = blk(); const modeK = el('div', 'cap', md); const modeV = el('div', 'v', md);
-    const ck = blk('clock'); const clockK = el('div', 'cap', ck); const clockV = el('div', 'v', ck); const clockN = el('div', 'n', ck);
-    const sb = blk(); const stK = el('div', 'cap', sb);
-    const pill = el('div', 'pill Stable', sb); el('i', '', pill); const pillT = el('span', '', pill);
-    pill.dataset.role = 'plant-state';
-    this.top = { origin, modeK, modeV, clockK, clockV, clockN, stK, pill, pillT, phK, phV };
-
-    this.kpis = new KpiPanel(this.root);
-
-    // Leyenda + toggles
-    const lg = el('div', 'panel legend', this.root);
-    const lhd = el('div', 'lhd', lg);
-    const lcap = el('div', 'cap', lhd);
-    const lfoot = el('div', 'lfoot', lhd);
-    lfoot.dataset.role = 'lights-foot';
-    const items = el('div', 'items', lg);
-    const kinds: LineKind[] = ['leachate', 'clarified', 'pumped', 'anaerobic', 'treated', 'sludge', 'biogas', 'chemical', 'return'];
-    const litems: { key: I18nKey; t: HTMLElement }[] = [];
-    for (const k of kinds) {
-      const it = el('div', 'it', items);
-      const sw = el('span', 'sw', it);
-      sw.style.background = hex(LINE_COLORS[k].fluid);
-      litems.push({ key: `lk_${k}` as I18nKey, t: el('span', '', it) });
-    }
-    const pit = el('div', 'it', items);
-    el('span', 'dotp', pit);
-    litems.push({ key: 'lk_parcel', t: el('span', '', pit) });
-    const wit = el('div', 'it', items); el('span', 'wk', wit);
-    litems.push({ key: 'lk_worker', t: el('span', '', wit) });
-    const tit = el('div', 'it', items); el('span', 'trk', tit);
-    litems.push({ key: 'lk_truck', t: el('span', '', tit) });
-    // Toggles en la barra superior (solo modo interactivo).
-    const tgw = el('div', 'toggles pe', top);
-    top.insertBefore(tgw, top.querySelector('.sp'));
-    const tgs: { name: keyof Toggles | 'lang' | 'light'; b: HTMLButtonElement }[] = [];
-    for (const name of ['pipes', 'labels', 'flow', 'sludge', 'actors'] as (keyof Toggles)[]) {
-      const b = el('button', 'tg', tgw) as HTMLButtonElement;
-      b.onclick = () => h.toggle(name);
-      tgs.push({ name, b });
-    }
-    const lt = el('button', 'tg', tgw) as HTMLButtonElement;
-    lt.onclick = () => h.cycleLight();
-    tgs.push({ name: 'light', b: lt });
-    const lb = el('button', 'tg', tgw) as HTMLButtonElement;
-    tgs.push({ name: 'lang', b: lb });
-    lb.onclick = () => h.setLang(lb.dataset.next as Lang);
-    this.legend = { cap: lcap, foot: lfoot, items: litems, tgs };
-
-    this.alerts = new AlertLog(this.root);
-    this.detail = new DetailPanel(this.root);
+    const ui = this.ui;
+    this.header = new Header(this.root, film, v => this.setView(v), h, () => { ui.settings = !ui.settings; ui.layers = false; });
+    this.rail = new Rail(this.root, film, k => {
+      if (k === 'settings') { ui.settings = !ui.settings; ui.layers = false; return; }
+      ui[k] = !ui[k];
+      if (k === 'docs' && !ui.docs && ui.view === 'docs') ui.view = 'plant';
+    });
+    this.ops = new OpsPanel(this.root, () => { ui.ops = false; }, film);
+    this.events = new EventDrawer(this.root, () => { ui.events = false; });
+    this.detail = new DetailPanel(this.root, film, () => { ui.inspector = false; });
     this.split = new SplitCard(this.root, 788);
     this.compare = new CompareCard(this.root, 788);
-    this.impact = new ImpactPanel(this.root);
+    this.docs = new DocsPanel(this.root, () => { ui.docs = false; if (ui.view === 'docs') ui.view = 'plant'; });
 
     const cw = el('div', 'caption', this.root);
     const cs = el('span', '', cw);
@@ -137,17 +95,61 @@ export class Overlay {
     ct.style.cssText = 'background:none;border:none;padding:0';
     this.caption = { wrap: cw, b: cb, s: ct };
 
-    this.controls = film ? null : new Controls(this.root, h);
-    this.tracker = new ProcessTracker(this.root);
+    this.tool = film ? null : new Toolbar(this.root, h, () => ui, () => { ui.layers = !ui.layers; ui.settings = false; }, () => this.setImmersive(!ui.immersive));
+    this.layersPop = new Popover(this.root, 'layers', LAYER_KEYS.map(k => ({ key: k, on: () => h.toggle(k) })));
+    this.settingsPop = new Popover(this.root, 'settings', [
+      { key: 'lang', on: () => h.setLang(this.lang === 'es' ? 'en' : 'es') },
+      { key: 'light', on: () => h.cycleLight() },
+    ]);
+    this.timeline = new Timeline(this.root, film, h);
 
-    // Cursor (por encima de todo)
+    if (!film) {
+      window.addEventListener('keydown', e => {
+        const tg = e.target as HTMLElement;
+        if (tg?.tagName === 'INPUT' && (tg as HTMLInputElement).type !== 'range') return;
+        if (tg?.tagName === 'BUTTON' && (e.code === 'Space' || e.code === 'Enter')) return;
+        if (e.code === 'Space') { e.preventDefault(); h.togglePlay(); }
+        else if (e.code === 'ArrowLeft') { e.preventDefault(); h.step(-1); }
+        else if (e.code === 'ArrowRight') { e.preventDefault(); h.step(1); }
+        else if (e.code === 'KeyL') h.toggle('labels');
+        else if (e.code === 'KeyP') h.toggle('pipes');
+        else if (e.code === 'KeyF') h.toggle('flow');
+        else if (e.code === 'KeyV') h.toggle('actors');
+        else if (e.code === 'KeyN') h.cycleLight();
+        else if (e.code === 'KeyI') this.setImmersive(!ui.immersive);
+        else if (e.code === 'Escape') {
+          if (ui.layers || ui.settings) { ui.layers = false; ui.settings = false; }
+          else if (ui.immersive) this.setImmersive(false);
+          else if (ui.docs) { ui.docs = false; ui.view = 'plant'; }
+        }
+      });
+    }
+
+    // Cursor guionizado (por encima de todo)
     const cr = el('div', 'cursor', this.root);
     const rip = el('div', 'rip', cr);
     const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
     arrow.setAttribute('width', '22'); arrow.setAttribute('height', '26'); arrow.setAttribute('viewBox', '0 0 22 26');
-    arrow.innerHTML = '<path d="M2 1.5 L2 20 L7 15.5 L10.5 23.5 L13.8 22 L10.4 14.3 L17 14 Z" fill="#1b2240" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>';
+    arrow.innerHTML = '<path d="M2 1.5 L2 20 L7 15.5 L10.5 23.5 L13.8 22 L10.4 14.3 L17 14 Z" fill="#243443" stroke="#ffffff" stroke-width="1.3" stroke-linejoin="round"/>';
     cr.appendChild(arrow);
     this.cursor = { root: cr, arrow, rip };
+  }
+
+  /** Vistas del header: presets de paneles. No alteran escena, reproducción, selección ni cámara. */
+  setView(v: View): void {
+    const ui = this.ui;
+    if (v === 'scenarios') return;
+    ui.view = v;
+    ui.immersive = false;
+    if (v === 'plant') Object.assign(ui, { ops: true, events: false, analysis: false, docs: false });
+    else if (v === 'operation') Object.assign(ui, { ops: true, events: true, analysis: false, docs: false });
+    else if (v === 'analysis') Object.assign(ui, { ops: true, events: false, analysis: true, docs: false });
+    else if (v === 'docs') Object.assign(ui, { docs: true, events: false });
+  }
+
+  setImmersive(on: boolean): void {
+    this.ui.immersive = on;
+    this.ui.layers = false; this.ui.settings = false;
   }
 
   /** Escala del overlay (ancho del escenario / 1920). */
@@ -157,56 +159,60 @@ export class Overlay {
 
   update(state: SimState, ctx: OverlayCtx, plant: Plant, camera: THREE.Camera): void {
     const { lang } = ctx;
-    // Barra superior
-    setText(this.top.origin, tr('origin', lang));
-    setText(this.top.phK, tr('phase', lang));
-    setText(this.top.phV, state.phase === 'idle' ? '—' : state.phase);
-    setText(this.top.modeK, tr('mode', lang));
-    const modeKey: I18nKey = ctx.mode === 'film' ? 'mode_film' : ctx.mode === 'overview' ? 'mode_overview' : ctx.mode === 'free' ? 'mode_free' : 'mode_narrative';
-    setText(this.top.modeV, tr(modeKey, lang));
-    setText(this.top.clockK, tr('clock', lang));
-    setText(this.top.clockV, `${fmtClock(state.t)} / ${fmtClock(state.duration)}`);
-    setText(this.top.clockN, tr('compressed', lang));
-    setText(this.top.stK, tr('plant_state', lang));
-    this.top.pill.className = `pill ${state.plantState}`;
-    setText(this.top.pillT, tr(`st_${state.plantState}` as I18nKey, lang));
+    const ui = this.ui;
+    this.lang = lang;
+    this.ctxToggles = ctx.toggles;
+    const tp = { ...ctx.controls, mode: ctx.mode };
+    // Una selección nueva reabre el inspector (respeta el sistema de selección 3D existente).
+    if (ctx.selected && ctx.selected !== this.lastSel) ui.inspector = true;
+    this.lastSel = ctx.selected;
 
-    this.kpis.update(state, lang);
+    const imm = ui.immersive;
+    setClass(this.root, 'immersive', imm);
+    this.header.update(state, ui, tp, lang);
+    this.rail.update(ui, lang);
+    this.tool?.update(ui, tp, lang);
 
-    setText(this.legend.cap, tr('legend', lang));
-    setText(this.legend.foot, '');
-    for (const it of this.legend.items) setText(it.t, tr(it.key, lang));
-    for (const tg of this.legend.tgs) {
-      if (tg.name === 'lang') {
-        setText(tg.b, lang === 'es' ? 'ES · en' : 'EN · es');
-        tg.b.dataset.next = lang === 'es' ? 'en' : 'es';
-        setClass(tg.b, 'on', true);
-      } else if (tg.name === 'light') {
-        const m = state.lighting?.mode ?? 'day';
-        setText(tg.b, `${tr('tg_light', lang)}: ${tr(`light_${m}` as I18nKey, lang)}`);
-        setClass(tg.b, 'on', m !== 'day');
-      } else {
-        setText(tg.b, tr(`tg_${tg.name}` as I18nKey, lang));
-        setClass(tg.b, 'on', ctx.toggles[tg.name]);
-      }
-    }
+    setClass(this.ops.root, 'closed', imm || !ui.ops);
+    this.ops.update(state, lang);
+    setClass(this.events.root, 'closed', imm || !ui.events);
+    if (ui.events && !imm) this.events.update(state, lang);
+    setClass(this.docs.root, 'closed', imm || !ui.docs);
+    if (ui.docs) this.docs.update(lang);
 
-    this.alerts.update(state, lang);
+    const showInsp = !imm && ui.inspector && !!ctx.selected;
+    this.thumbVisible = showInsp;
+    setClass(this.detail.root, 'closed', !showInsp);
     this.detail.update(state, ctx.selected, lang);
+
     this.split.update(state, lang);
     this.compare.update(state, lang);
+    if (ui.analysis && !this.compare.visible) {
+      // Modo análisis: la comparación se muestra siempre con los valores actuales del modelo.
+      this.compare.forceUpdate(state, lang);
+    }
     if (this.compare.visible) setStyle(this.split.root, 'display', 'none');
-    this.impact.update(state, lang);
+    setClass(this.split.root, 'closed', imm);
+    setClass(this.compare.root, 'closed', imm);
 
-    // Subtítulo (aparición suave dentro de cada fase, determinista)
-    if (state.caption) {
+    const lm = state.lighting?.mode ?? 'day';
+    this.lightName = tr(`light_${lm}` as I18nKey, lang);
+    const tgs = this.ctxToggles!;
+    const tgName = (k: string) => tr(`tg_${k}` as I18nKey, lang);
+    this.layersPop.update(ui.layers && !this.film, Object.fromEntries(LAYER_KEYS.map(k => [k, [tgName(k), tgs[k]]])));
+    this.settingsPop.update(ui.settings && !this.film, {
+      lang: [lang === 'es' ? 'Idioma: Español · cambiar a English' : 'Language: English · switch to Español', true],
+      light: [`${tr('tg_light', lang)}: ${this.lightName}`, lm !== 'day'],
+    });
+
+    // Subtítulo narrativo
+    if (state.caption && !imm) {
       setStyle(this.caption.wrap, 'display', 'flex');
-      setText(this.caption.b, state.phase === 'idle' ? (lang === 'es' ? 'INICIO' : 'START') : `${tr('phase', lang).toUpperCase()} ${state.phase}`);
+      setText(this.caption.b, state.phase === 'idle' ? (lang === 'es' ? 'Inicio' : 'Start') : `${tr('phase', lang)} ${state.phase}`);
       setText(this.caption.s, state.caption[lang]);
     } else setStyle(this.caption.wrap, 'display', 'none');
 
-    this.controls?.update(ctx.controls, lang);
-    this.tracker.update(state, lang);
+    this.timeline.update(state, imm ? { ...ui, stages: false } : ui, tp, lang);
 
     this.labels.visible = ctx.toggles.labels;
     this.labels.update(plant, camera, state, ctx.selected, lang, ctx.obstacles, ctx.trucks);

@@ -1,0 +1,44 @@
+# Interfaz v3.0 · Light Industrial Interface (rama `panel-nuevo`)
+
+Rediseño **solo de presentación**: no cambian geometría, materiales, cálculos, simulación, guion, cámara ni selección 3D.
+
+## Auditoría: límites entre interfaz y simulador
+| Pieza | Archivo | ¿Cambia? |
+|---|---|---|
+| Canvas, renderer y bucle | `src/main.ts`, `src/scene/*` | No. Solo `clearSelection` y que la miniatura se dibuje si el inspector está visible |
+| Cámara (encuadre, región segura `SAFE_PX`) | `src/motion/cameraStory.ts` | No |
+| Selección 3D (raycast) | `src/main.ts` | No |
+| Estado de reproducción y simulación | `src/main.ts`, `src/sim/*`, `src/motion/timeline.ts` | No |
+| Cálculos e indicadores | `src/plant/assumptions.ts`, `src/sim/selectors.ts`, `src/ui/impact.ts` | No (solo se leen) |
+| Interfaz | `src/ui/shell.ts` (nuevo), `overlay.ts`, `detailPanel.ts`, `styles.ts` | Sí |
+
+## Componentes (capas HTML sobre el canvas 1920×1080 escalado)
+- **Header** blanco de 56 px:
+  - izquierda: logo, título y descriptor;
+  - centro: Planta · Operación · Análisis · Escenarios · Documentación;
+  - derecha: estado, tiempo, reproducir y configuración.
+  - *Escenarios* está deshabilitado porque este simulador no tiene escenarios definidos.
+- **Rail** de 52 px: muestra u oculta Planta (panel de operación), Proceso (etapas), Equipos (inspector), Análisis, Eventos, Documentación y Configuración. Tiene tooltips y foco por teclado.
+- **Panel de operación**: un solo panel con tres secciones (operación, estado general, impacto); se puede ocultar.
+- **Inspector**:
+  - encabezado con nombre, código, estado y cierre;
+  - miniatura existente (segunda pasada del mismo renderer);
+  - pestañas General · Diseño · Operación.
+  - No hay pestaña de Mantenimiento porque no hay datos.
+  - Las dimensiones vienen del modelo 3D y se marcan como S.
+- **Toolbar 3D**: vista narrativa, vista general, capas, pantalla completa y ocultar interfaz.
+- **Timeline** de dos filas:
+  - fila 1: reproducir, reiniciar, nombre, tiempo, progreso con arrastre, velocidad ×0,5/×1/×2 y bucle;
+  - fila 2: las 9 etapas, que se pueden pulsar.
+  - La etapa en curso es azul sólido, las completadas azul suave y las pendientes gris. Un punto verde indica, por separado, que hay equipos en funcionamiento.
+- **Registro de eventos**: oculto por defecto; muestra hora, evento, severidad y origen («Simulado»).
+- **Documentación**: clases B/S/C y tabla de supuestos y cálculos por equipo, tomada de `UNIT_FACTS`.
+- **Modo inmersivo** (botón o tecla `I`; `Esc` para salir): deja solo la toolbar y el timeline compacto.
+- Animaciones de 120–240 ms; con `prefers-reduced-motion` se desactivan; en modo película no hay transiciones.
+
+## Verificación (misma resolución, cámara, tiempo y parámetros)
+- Canvas de 1920×1080 antes y después, con las mismas distancias de cámara en t = 8, 21, 36 y 48 s (44,477 · 37,558 · 40,109 · 117,536).
+- `npm test` 13/13; `npm run test:browser` (g–k) pasa con los selectores de los paneles nuevos.
+- Interactivo:
+  - el clic sobre la planta selecciona el equipo (los paneles no capturan eventos fuera de su superficie);
+  - las pestañas, la toolbar, las capas, el modo inmersivo y el salto por etapas funcionan sin errores de consola.
