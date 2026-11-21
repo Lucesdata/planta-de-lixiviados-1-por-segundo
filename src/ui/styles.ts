@@ -12,7 +12,7 @@ export const GRID = {
   // SPEC v3: header completo arriba; paneles flotantes sobre el canvas (no lo reducen).
   top: { x0: 0, y0: 0, x1: 1920, y1: 56 } as Rect,
   rail: { x0: 16, y0: 72, x1: 68, y1: 470 } as Rect,
-  left: { x0: 80, y0: 72, x1: 320, y1: 940 } as Rect,
+  left: { x0: 80, y0: 72, x1: 284, y1: 940 } as Rect,
   right: { x0: 1600, y0: 120, x1: 1904, y1: 776 } as Rect,
   caption: { x0: 360, y0: 852, x1: 1560, y1: 892 } as Rect,
   controls: { x0: 360, y0: 900, x1: 1560, y1: 940 } as Rect,
@@ -296,32 +296,33 @@ html:not(.film) .top .origin{white-space:normal;max-width:262px;font-size:10.5px
 .v3 .rail3 .sep{width:24px;height:1px;background:var(--ui-border);margin:4px 0}
 
 /* Panel de operación */
-.v3 .p3hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 12px 8px 16px}
-.v3 .p3t{font-size:15px;font-weight:650}
-.v3 .p3cap{font-size:12px;font-weight:600;color:var(--ui-text-muted);margin-bottom:6px}
-.v3 .p3sec{padding:10px 16px;border-top:1px solid var(--ui-border)}
+.v3 .p3hd{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 8px 4px 12px}
+.v3 .p3t{font-size:14px;font-weight:650}
+.v3 .p3cap{font-size:11.5px;font-weight:600;color:var(--ui-text-muted);margin-bottom:3px}
+.v3 .p3sec{padding:6px 12px;border-top:1px solid var(--ui-border)}
 .v3 .p3sec:first-of-type{border-top:none;padding-top:0}
-.v3 .p3foot{padding:8px 16px 12px;border-top:1px solid var(--ui-border);font-size:11px;color:var(--ui-text-muted);line-height:1.35}
+.v3 .p3foot{padding:6px 12px 8px;border-top:1px solid var(--ui-border);font-size:11px;color:var(--ui-text-muted);line-height:1.35}
 .v3 .ops3{left:${GRID.left.x0}px;top:${GRID.left.y0}px;width:${GRID.left.x1 - GRID.left.x0}px}
-.v3 .orow{display:grid;grid-template-columns:1fr auto;align-items:baseline;column-gap:8px;padding:5px 0}
+.v3 .orow{display:grid;grid-template-columns:1fr auto;align-items:baseline;column-gap:6px;padding:3px 0}
 .v3 .orow+.orow{border-top:1px solid #eef1f5}
-.v3 .orow .k{font-size:12.5px;color:var(--ui-text-muted)}
+.v3 .orow .k{font-size:12px;color:var(--ui-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v3 .orow .vw{display:flex;align-items:baseline;gap:6px;justify-content:flex-end}
-.v3 .orow .v{font-size:15px;font-weight:650;white-space:nowrap}
-.v3 .orow .s{grid-column:1/-1;font-size:11px;color:#8794a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v3 .orow .v{font-size:13.5px;font-weight:650;white-space:nowrap}
+.v3 .orow .s{display:none;grid-column:1/-1;font-size:10.5px;color:#8794a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .v3 .orow.ok .v{color:var(--ui-success)}
 .v3 .orow.off .v{color:#a2adbb;font-weight:500}
 .v3 .orow.muted .v{color:var(--ui-text-muted)}
 .v3 .orow[data-kpi=kpi_staff]{grid-template-columns:1fr}
 .v3 .orow[data-kpi=kpi_staff] .vw{justify-content:flex-start;flex-wrap:wrap;row-gap:3px}
-.v3 .orow[data-kpi=kpi_staff] .v{font-size:13px;font-weight:600}
+.v3 .orow[data-kpi=kpi_staff] .v{font-size:12.5px;font-weight:600}
+.v3 .orow[data-kpi=kpi_staff] .s{display:block}
 .v3 .chip3{font-size:10.5px;color:var(--ui-text-muted);border:1px solid var(--ui-border);border-radius:6px;padding:1px 6px;background:var(--ui-surface-soft);white-space:nowrap}
 .v3 .chip3.on{color:#8a5a12;border-color:#efdcb8;background:#fbf3e4}
-.v3 .igrid3{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
-.v3 .it3 .k{font-size:11.5px;color:var(--ui-text-muted);white-space:nowrap}
+.v3 .igrid3{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px}
+.v3 .it3 .k{font-size:11px;overflow:hidden;text-overflow:ellipsis;color:var(--ui-text-muted);white-space:nowrap}
 .v3 .it3 .vr{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
-.v3 .it3 .v{font-size:24px;font-weight:650;letter-spacing:-.02em;color:var(--ui-text)}
-.v3 .it3 .u{font-size:11px;color:var(--ui-text-muted)}
+.v3 .it3 .v{font-size:18px;font-weight:650;letter-spacing:-.02em;color:var(--ui-text)}
+.v3 .it3 .u{font-size:10px;color:var(--ui-text-muted)}
 
 /* Inspector */
 .v3 .insp3{position:absolute;left:${GRID.right.x0}px;top:${GRID.right.y0}px;width:${GRID.right.x1 - GRID.right.x0}px;max-height:${GRID.right.y1 - GRID.right.y0}px;display:flex;flex-direction:column;background:transparent;border:1px solid var(--ui-border);border-radius:12px;box-shadow:var(--ui-shadow);overflow:hidden}

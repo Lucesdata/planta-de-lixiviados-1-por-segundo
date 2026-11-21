@@ -63,7 +63,7 @@ const lerpC = (a: number, b: number, k: number) => new THREE.Color(a).lerp(new T
 const lerpS = (a: string, b: string, k: number) => '#' + new THREE.Color(a).lerp(new THREE.Color(b), k).getHexString();
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
-export function createLighting(scene: THREE.Scene, site = SITE): LightingRig {
+export function createLighting(scene: THREE.Scene, site = SITE, shadowSize = 4096): LightingRig {
   const cx = (site.minX + site.maxX) / 2, cz = (site.minZ + site.maxZ) / 2;
   const center = new THREE.Vector3(cx, 0, cz);
   const halfDiag = Math.hypot(site.maxX - site.minX, site.maxZ - site.minZ) / 2;
@@ -75,7 +75,7 @@ export function createLighting(scene: THREE.Scene, site = SITE): LightingRig {
   const key = new THREE.DirectionalLight(0xfff2e0, 2.8);
   key.target.position.copy(center);
   key.castShadow = true;
-  key.shadow.mapSize.set(4096, 4096);
+  key.shadow.mapSize.set(shadowSize, shadowSize);
   const sc = key.shadow.camera;
   sc.left = -halfDiag - 2; sc.right = halfDiag + 2; sc.top = halfDiag + 2; sc.bottom = -halfDiag - 2;
   sc.near = 20; sc.far = 150;

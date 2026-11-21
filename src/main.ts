@@ -26,6 +26,8 @@ import { installFilmApi } from './render/capture';
 import { SocialOverlay } from './ui/social';
 import { SOCIAL_DURATION, socialToFilm } from './render/social';
 import { setFraming } from './motion/cameraStory';
+import { DynamicResolution, detectQuality, pixelRatioCap } from './render/quality';
+import { MobileHud } from './ui/mobile';
 
 // ——— Parámetros de URL ———
 const q = new URLSearchParams(location.search);
@@ -50,7 +52,9 @@ const canvasHost = document.createElement('div');
 canvasHost.style.cssText = 'position:absolute;inset:0';
 stage.appendChild(canvasHost);
 
-const world = createWorld(canvasHost);
+/** Calidad: «low» en móvil o equipos modestos (?q=low|high la fuerza). */
+const QUALITY = detectQuality(q, FILM);
+const world = createWorld(canvasHost, { low: QUALITY === 'low', film: FILM });
 const { renderer, scene } = world;
 /** Planta real (Agente A); ?stub=1 o un fallo de construcción → planta de respaldo. */
 function makePlant(): Plant {
@@ -124,6 +128,15 @@ if (SOCIAL) {
   setFraming(FW / FH, { bx: 0, by: 0.2, hx: 0.9, hy: 0.56 });
 }
 
+const dynRes = new DynamicResolution(renderer, FILM ? 1 : pixelRatioCap(QUALITY));
+if (!FILM) renderer.setPixelRatio(dynRes.ratio);
+let compact = false;
+const mobile = FILM ? null : new MobileHud(app, {
+  togglePlay() { if (t >= DURATION && !playing) t = 0; playing = !playing; },
+  seek(v) { t = Math.min(DURATION, Math.max(0, v)); },
+  setMode(m) { startBlend(); mode = mode === 'overview' && m === 'overview' ? 'narrative' : m; userSel = undefined; },
+});
+
 function layout(): void {
   if (FILM) { stageW = FW; stageH = FH; }
   else {
@@ -133,7 +146,11 @@ function layout(): void {
   }
   stage.style.width = `${stageW}px`;
   stage.style.height = `${stageH}px`;
-  renderer.setPixelRatio(FILM ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+  if (FILM) renderer.setPixelRatio(1);
+  else dynRes.setCap(pixelRatioCap(QUALITY));
+  // Interfaz compacta (móvil / ventanas pequeñas): el overlay de 1920 px escalado sería ilegible.
+  compact = !FILM && stageW < 1100;
+  document.documentElement.classList.toggle('compact', compact);
   world.resize(stageW, stageH);
   rig.setAspect(SOCIAL ? stageW / stageH : 16 / 9);
   overlay.setScale(stageW / 1920);
@@ -212,12 +229,13 @@ function applyFrame(time: number): SimState {
     const [sx, sy] = project(p);
     obstacles.push({ x0: sx - 20, y0: sy - 20, x1: sx + 20, y1: sy + 20 });
   }
-  overlay.update(state, {
+  if (compact && mobile) mobile.update(state, playing, sel, lang);
+  else overlay.update(state, {
     mode, lang, selected: sel, toggles, obstacles, trucks: truckTags,
     controls: { playing, speed, loop, t: state.t, duration: DURATION, mode },
   }, plant, rig.camera);
 
-  render(SOCIAL || !overlay.thumbVisible ? null : sel);
+  render(SOCIAL || compact || !overlay.thumbVisible ? null : sel);
   lastState = state;
   lastSelected = sel;
   return state;
@@ -273,23 +291,48 @@ if (!FILM) {
   const cv = renderer.domElement;
   cv.style.touchAction = 'none';
   let down: { x: number; y: number; moved: boolean } | null = null;
-  cv.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, moved: false }; cv.setPointerCapture(e.pointerId); });
+  // Táctil: un dedo = pan (como el arrastre), dos dedos = pellizco para acercar/alejar.
+  const touches = new Map<number, { x: number; y: number }>();
+  let pinch = 0;
+  const spread = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  cv.addEventListener('pointerdown', e => {
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    cv.setPointerCapture(e.pointerId);
+    if (touches.size === 2) { pinch = spread(); down = null; return; }
+    down = { x: e.clientX, y: e.clientY, moved: false };
+  });
   cv.addEventListener('pointermove', e => {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 2 && pinch > 0) {
+      const d = spread();
+      if (d > 0) {
+        if (mode !== 'free') { blend = null; mode = 'free'; }
+        rig.dolly(pinch / d);
+        pinch = d;
+      }
+      return;
+    }
     if (!down) {
-      cv.style.cursor = pick(e.clientX, e.clientY) ? 'pointer' : 'default';
+      if (e.pointerType === 'mouse') cv.style.cursor = pick(e.clientX, e.clientY) ? 'pointer' : 'default';
       return;
     }
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
-    if (!down.moved && Math.hypot(dx, dy) < 4) return;
+    if (!down.moved && Math.hypot(dx, dy) < (e.pointerType === 'mouse' ? 4 : 8)) return;
     if (!down.moved) { down.moved = true; if (mode !== 'free') { blend = null; mode = 'free'; } }
     const s = 1080 / stageH;
     rig.panPixels(dx * s, dy * s, 1080);
     down.x = e.clientX; down.y = e.clientY;
   });
+  const lift = (e: PointerEvent) => {
+    touches.delete(e.pointerId);
+    if (touches.size < 2) pinch = 0;
+  };
   cv.addEventListener('pointerup', e => {
-    if (down && !down.moved) userSel = pick(e.clientX, e.clientY);
+    if (down && !down.moved && touches.size <= 1) userSel = pick(e.clientX, e.clientY);
     down = null;
+    lift(e);
   });
+  cv.addEventListener('pointercancel', e => { down = null; lift(e); });
   cv.addEventListener('wheel', e => {
     e.preventDefault();
     if (mode !== 'free') { blend = null; mode = 'free'; }
@@ -336,6 +379,7 @@ if (FILM) {
 } else {
   let last = performance.now();
   const tick = (now: number) => {
+    dynRes.frame(now - last);
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
     if (playing) {

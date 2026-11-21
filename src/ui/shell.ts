@@ -229,7 +229,7 @@ export class OpsPanel {
     const m = buildKpis(state, lang);
     setText(this.caps[0], L(lang, 'Operación en planta', 'Plant operation'));
     setText(this.caps[1], L(lang, 'Estado general', 'General status'));
-    setText(this.caps[2], L(lang, 'Impacto · por día de operación', 'Impact · per operating day'));
+    setText(this.caps[2], L(lang, 'Impacto · por día', 'Impact · per day'));
     const vals: [string, string, string, 'ok' | 'off' | 'muted' | ''][] = [
       [m.flow, m.flowSub, 'B', state.plantState === 'Active' ? 'ok' : ''],
       [m.ops, m.opsSub, 'C', ''],
@@ -260,7 +260,7 @@ export class OpsPanel {
       const [k, x, d, u] = tiles[i];
       setText(tl.k, k); setText(tl.v, x > 1e-6 ? fmt(x, d, lang) : '—'); setText(tl.u, u);
     });
-    setText(this.foot, L(lang, 'B brief · S supuesto · C cálculo. Valores estimados por el modelo, no mediciones.', 'B brief · S assumed · C calculated. Model estimates, not measurements.'));
+    setText(this.foot, L(lang, 'B brief · S supuesto · C cálculo · estimaciones, no mediciones', 'B brief · S assumed · C calc. · estimates, not measurements'));
   }
 }
 

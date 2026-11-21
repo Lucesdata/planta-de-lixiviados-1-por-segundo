@@ -42,3 +42,20 @@ Rediseño **solo de presentación**: no cambian geometría, materiales, cálculo
 - Interactivo:
   - el clic sobre la planta selecciona el equipo (los paneles no capturan eventos fuera de su superficie);
   - las pestañas, la toolbar, las capas, el modo inmersivo y el salto por etapas funcionan sin errores de consola.
+
+## Ajuste 1 · panel compacto, móvil y baja gama
+- **Panel de operación:**
+  - más angosto (204 px en lugar de 240);
+  - filas de una línea; los subtítulos quedan en el tooltip, salvo el de logística;
+  - impacto en un bloque 2×2 compacto.
+- **Calidad adaptable** (`src/render/quality.ts`):
+  - Nivel «low» automático en táctil, pantallas pequeñas, ≤4 núcleos o ≤4 GB de RAM, o forzado con `?q=low|high`.
+  - En «low»: sin antialias, sombras de 1024 px PCF (en lugar de 4096 PCFSoft) y resolución máxima de 1,25×.
+  - Resolución dinámica: la resolución baja o sube entre 0,6× y el tope para sostener unos 30 fps.
+  - No cambian geometría, cámara, simulación ni cifras. La película siempre usa calidad alta.
+- **Interfaz compacta** (escenario < 1100 px; `src/ui/mobile.ts`):
+  - barra superior con título, tiempo, reproducir e «Info»;
+  - barra inferior con la etapa actual, anterior/siguiente, vista general, subtítulo, progreso con arrastre y las 9 etapas;
+  - hoja «Info» con la ficha del equipo tocado, la operación y el impacto (con clases B/S/C).
+  - En vertical las barras ocupan las franjas libres alrededor del escenario 16:9 y aparece la sugerencia de girar el teléfono.
+- **Táctil:** un dedo desplaza la vista, dos dedos hacen zoom (pellizco) y un toque selecciona un equipo.

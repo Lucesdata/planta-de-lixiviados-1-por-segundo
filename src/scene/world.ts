@@ -104,21 +104,22 @@ export function createGround(): THREE.Group {
   return g;
 }
 
-export function createWorld(container: HTMLElement): { renderer: THREE.WebGLRenderer; scene: THREE.Scene; lighting: LightingRig; resize(w: number, h: number): void } {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+export function createWorld(container: HTMLElement, opts: { low?: boolean; film?: boolean } = {}): { renderer: THREE.WebGLRenderer; scene: THREE.Scene; lighting: LightingRig; resize(w: number, h: number): void } {
+  // Baja gama: sin antialias ni búfer preservado (solo la película lo necesita) y sombras más ligeras.
+  const renderer = new THREE.WebGLRenderer({ antialias: !opts.low, preserveDrawingBuffer: !!opts.film || !opts.low, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = opts.low ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   scene.background = gradientTexture() ?? new THREE.Color(WORLD_COLORS.skyMid);
   scene.fog = new THREE.Fog(WORLD_COLORS.horizon, 170, 460);
   scene.add(createGround());
-  const lighting = createLighting(scene);
+  const lighting = createLighting(scene, undefined, opts.low ? 1024 : 4096);
 
   const resize = (w: number, h: number) => { renderer.setSize(w, h); };
   resize(container.clientWidth || 1600, container.clientHeight || 900);
