@@ -59,3 +59,7 @@ Rediseño **solo de presentación**: no cambian geometría, materiales, cálculo
   - hoja «Info» con la ficha del equipo tocado, la operación y el impacto (con clases B/S/C).
   - En vertical las barras ocupan las franjas libres alrededor del escenario 16:9 y aparece la sugerencia de girar el teléfono.
 - **Táctil:** un dedo desplaza la vista, dos dedos hacen zoom (pellizco) y un toque selecciona un equipo.
+
+## Ajuste 2 · móvil a pantalla completa
+- **Pantalla completa:** en la interfaz compacta la planta ocupa toda la pantalla, no una franja 16:9. El encuadre usa la forma real del teléfono y deja libres las barras: `setFraming(W/H, región libre)`, el mismo mecanismo del corte vertical. La cámara y su dirección son las mismas.
+- **Resolución por presupuesto de píxeles:** 1,4 Mpx en calidad baja y 3,6 Mpx en alta, con un mínimo de 1× y un máximo de 2×. En un teléfono de 3× se renderiza a unos 2×, de modo que se ve nítido sin el costo de una pantalla de escritorio. La resolución dinámica no baja del 60 % del tope.

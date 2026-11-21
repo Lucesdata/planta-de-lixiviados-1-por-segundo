@@ -28,7 +28,7 @@ export const MOBILE_CSS = /* css */ `
 .mtop .logo{width:14px;height:14px;border-radius:50% 0 50% 50%;transform:rotate(-45deg);background:linear-gradient(200deg,#5b84ff,#3267CE 45%,#15c3b0);flex:none}
 .mtop .tt{flex:1;min-width:0;line-height:1.15}
 .mtop .tt b{display:block;font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mtop .tt span{font-size:11.5px;color:#66768A}
+.mtop .tt span{display:block;font-size:11.5px;color:#66768A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mtop .tm{font:600 13px "Geist Mono",Menlo,monospace;color:#66768A;white-space:nowrap}
 .mb{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:40px;border-radius:10px;border:1px solid #DEE3EB;background:#fff;color:#243443;padding:0 10px;font:600 13px inherit;gap:6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .mb.primary{background:#3267CE;border-color:#3267CE;color:#fff}
@@ -61,6 +61,8 @@ export const MOBILE_CSS = /* css */ `
 .msheet .fn{font-size:13.5px;color:#4a5a6c;line-height:1.4}
 .msheet .foot{font-size:11.5px;color:#8794a6;margin-top:12px}
 .msheet .cls{font:700 10px "Geist Mono",Menlo,monospace;border:1px solid #DEE3EB;border-radius:4px;padding:0 4px;margin-left:5px;color:#66768A}
+@media (max-height: 500px){.mtop .tt span,.mhint,.mdots{display:none}.mcap{-webkit-line-clamp:1;margin:4px 0 2px}.mb{height:34px;min-width:34px}.mtop,.mbot{padding-top:5px;padding-bottom:5px}}
+.compact .stage{position:fixed;inset:0}
 @media (prefers-reduced-motion: reduce){.msheet{transition:none}}
 `;
 
@@ -81,7 +83,7 @@ export class MobileHud {
     el('span', 'logo', top);
     const tt = el('div', 'tt', top);
     el('b', '', tt, 'PTL Buenaventura');
-    el('span', '', tt, 'Agua Recuperada · simulación didáctica');
+    el('span', '', tt, 'Agua Recuperada · simulación');
     this.tm = el('span', 'tm', top);
     this.play = el('button', 'mb primary', top) as HTMLButtonElement;
     this.play.onclick = () => h.togglePlay();
@@ -122,6 +124,8 @@ export class MobileHud {
     this.sheetBody = el('div', '', this.sheet);
   }
 
+  topHeight(): number { return (this.root.querySelector('.mtop') as HTMLElement)?.offsetHeight || 56; }
+  bottomHeight(): number { return (this.root.querySelector('.mbot') as HTMLElement)?.offsetHeight || 130; }
   private t = 0;
   private jump(d: number): void {
     const i = STAGE_WINDOWS.findIndex(w => this.t >= w.t0 && this.t < w.t1);
@@ -144,9 +148,8 @@ export class MobileHud {
     setStyle(this.bar, 'width', `${((100 * state.t) / state.duration).toFixed(1)}%`);
     if (!this.scrubbing) this.range.value = state.t.toFixed(2);
     this.dots.forEach((d, j) => { setClass(d, 'done', state.t >= STAGE_WINDOWS[j].t1); setClass(d, 'on', j === i); });
-    const portrait = window.innerHeight > window.innerWidth;
-    setText(this.hint, portrait ? 'Gira el teléfono para ver la planta más grande · toca un equipo para ver su ficha' : '');
-    setStyle(this.hint, 'display', portrait ? 'block' : 'none');
+    setText(this.hint, selected ? '' : 'Toca un equipo para ver su ficha · dos dedos para acercar');
+    setStyle(this.hint, 'display', selected ? 'none' : 'block');
 
     setClass(this.sheet, 'open', this.open);
     if (!this.open) return;

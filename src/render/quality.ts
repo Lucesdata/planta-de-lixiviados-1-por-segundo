@@ -18,10 +18,15 @@ export function detectQuality(q: URLSearchParams, film: boolean): Quality {
   return coarse || small || cores <= 4 || mem <= 4 ? 'low' : 'high';
 }
 
-/** Tope de resolución interna (× píxeles CSS). */
-export function pixelRatioCap(quality: Quality): number {
+/**
+ * Tope de resolución interna (× píxeles CSS) por presupuesto de píxeles: un teléfono (pantalla pequeña y
+ * densa) puede renderizar a ~2× con el mismo costo que un monitor Full HD a 1×; nunca por debajo de 1×.
+ */
+export function pixelRatioCap(quality: Quality, cssW: number, cssH: number): number {
   const dpr = window.devicePixelRatio || 1;
-  return quality === 'low' ? Math.min(dpr, 1.25) : Math.min(dpr, 2);
+  const budget = quality === 'low' ? 1.4e6 : 3.6e6;
+  const byBudget = Math.sqrt(budget / Math.max(1, cssW * cssH));
+  return Math.round(Math.min(dpr, 2, Math.max(1, byBudget)) * 100) / 100;
 }
 
 /**
@@ -35,7 +40,12 @@ export class DynamicResolution {
   constructor(private renderer: THREE.WebGLRenderer, private cap: number, private floor = 0.6, private onChange?: () => void) {
     this.pr = cap;
   }
-  setCap(cap: number): void { this.cap = cap; if (this.pr > cap) this.apply(cap); }
+  /** Nuevo tope (al cambiar el tamaño): empieza en el tope y el piso es el 60 % del tope, nunca < 0,75. */
+  setCap(cap: number): void {
+    this.cap = cap;
+    this.floor = Math.min(cap, Math.max(0.75, cap * 0.6));
+    this.apply(cap);
+  }
   get ratio(): number { return this.pr; }
   frame(dtMs: number): void {
     if (dtMs <= 0 || dtMs > 500) return;

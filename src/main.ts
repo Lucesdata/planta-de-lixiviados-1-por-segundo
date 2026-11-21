@@ -25,7 +25,7 @@ import { lerp, smoothstep } from './sim/signals';
 import { installFilmApi } from './render/capture';
 import { SocialOverlay } from './ui/social';
 import { SOCIAL_DURATION, socialToFilm } from './render/social';
-import { setFraming } from './motion/cameraStory';
+import { setFraming, SAFE_NDC, STAGE_W, STAGE_H } from './motion/cameraStory';
 import { DynamicResolution, detectQuality, pixelRatioCap } from './render/quality';
 import { MobileHud } from './ui/mobile';
 
@@ -128,9 +128,10 @@ if (SOCIAL) {
   setFraming(FW / FH, { bx: 0, by: 0.2, hx: 0.9, hy: 0.56 });
 }
 
-const dynRes = new DynamicResolution(renderer, FILM ? 1 : pixelRatioCap(QUALITY));
+const dynRes = new DynamicResolution(renderer, FILM ? 1 : pixelRatioCap(QUALITY, window.innerWidth, window.innerHeight));
 if (!FILM) renderer.setPixelRatio(dynRes.ratio);
 let compact = false;
+let barsKey = '';
 const mobile = FILM ? null : new MobileHud(app, {
   togglePlay() { if (t >= DURATION && !playing) t = 0; playing = !playing; },
   seek(v) { t = Math.min(DURATION, Math.max(0, v)); },
@@ -138,21 +139,30 @@ const mobile = FILM ? null : new MobileHud(app, {
 });
 
 function layout(): void {
+  const W = window.innerWidth, H = window.innerHeight;
   if (FILM) { stageW = FW; stageH = FH; }
   else {
-    const W = window.innerWidth, H = window.innerHeight;
     stageW = Math.floor(Math.min(W, (H * 16) / 9));
     stageH = Math.floor((stageW * 9) / 16);
   }
-  stage.style.width = `${stageW}px`;
-  stage.style.height = `${stageH}px`;
-  if (FILM) renderer.setPixelRatio(1);
-  else dynRes.setCap(pixelRatioCap(QUALITY));
   // Interfaz compacta (móvil / ventanas pequeñas): el overlay de 1920 px escalado sería ilegible.
   compact = !FILM && stageW < 1100;
   document.documentElement.classList.toggle('compact', compact);
+  if (compact) {
+    // Móvil: la planta ocupa toda la pantalla y el encuadre se adapta a su forma, dejando libre la franja
+    // de las barras superior e inferior (misma cámara y dirección; solo cambia el aspecto del lienzo).
+    stageW = W; stageH = H;
+    const top = mobile?.topHeight() ?? 56, bot = mobile?.bottomHeight() ?? 130;
+    const by = (bot - top) / H;
+    const hy = Math.max(0.2, (1 - (top + bot) / H) * 0.9);
+    setFraming(W / H, { bx: 0, by, hx: 0.9, hy });
+  } else if (!SOCIAL) setFraming(STAGE_W / STAGE_H, SAFE_NDC);
+  stage.style.width = `${stageW}px`;
+  stage.style.height = `${stageH}px`;
+  if (FILM) renderer.setPixelRatio(1);
+  else dynRes.setCap(pixelRatioCap(QUALITY, stageW, stageH));
   world.resize(stageW, stageH);
-  rig.setAspect(SOCIAL ? stageW / stageH : 16 / 9);
+  rig.setAspect(SOCIAL || compact ? stageW / stageH : 16 / 9);
   overlay.setScale(stageW / 1920);
   social?.setScale(stageW / 1080);
 }
@@ -387,6 +397,11 @@ if (FILM) {
       if (t >= DURATION) { if (loop) t = 0; else { t = DURATION; playing = false; } }
     }
     applyFrame(t);
+    // Móvil: al conocer la altura real de las barras, reencuadrar una vez (y si cambian al girar).
+    if (compact && mobile) {
+      const k = `${mobile.topHeight()},${mobile.bottomHeight()}`;
+      if (k !== barsKey) { barsKey = k; layout(); }
+    }
     requestAnimationFrame(tick);
   };
   applyFrame(t);
