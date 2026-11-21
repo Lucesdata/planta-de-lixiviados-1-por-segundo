@@ -388,6 +388,19 @@ function checkDetail(d, id, lang, msgs) {
   report('(interfaz) tuberías y anclas label/focus/core', !missP.length && !missA.length, [missP.length ? `faltan tuberías ${missP}` : '', missA.length ? `faltan anclas ${missA}` : ''].filter(Boolean).join('; ') || `${M.flow.PIPES.length} tuberías, ${Object.keys(plant.units).length} unidades`);
 }
 
+// (n) Balance de masa por etapa: monótono y coherente con los cálculos globales (C)
+{
+  const A = M.assumptions, B = A.massBalance(), D = A.derive();
+  const last = B[B.length - 1];
+  const mono = B.every(r => r.codOut <= r.codIn + 1e-9 && r.tssOut <= r.tssIn + 1e-9);
+  const chain = B.every((r, i) => i === 0 || (Math.abs(r.codIn - B[i - 1].codOut) < 1e-9 && Math.abs(r.tssIn - B[i - 1].tssOut) < 1e-9));
+  const okCod = Math.abs(last.codOut - D.codFinal) < 1e-6, okTss = Math.abs(last.tssOut - D.tssOut) < 1e-6;
+  const sumKg = B.reduce((a, r) => a + r.codKgd, 0);
+  const okKg = Math.abs(sumKg - D.codAvoided_kgd) < 1e-6;
+  report('(n) balance de masa por etapa coherente', mono && chain && okCod && okTss && okKg,
+    `DQO ${A.S.codIn_mgL} → ${last.codOut.toFixed(0)} mg/L, SST ${A.S.tssIn_mgL} → ${last.tssOut.toFixed(0)} mg/L, Σ ${sumKg.toFixed(1)} kg DQO/d`);
+}
+
 const failed = results.filter(r => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} comprobaciones OK (planta ${plantKind})`);
 process.exit(failed.length ? 1 : 0);
