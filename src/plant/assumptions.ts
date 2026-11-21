@@ -48,6 +48,9 @@ export const S = {
   carrierSsa_m2m3: 500,      // superficie protegida del soporte, m²/m³ (tipo K1)
   doSet_mgL: 2.5,            // consigna de oxígeno disuelto
   uasbSepAngle_deg: 50,      // inclinación de las campanas del separador trifásico
+  // Filtro fitopedológico (fase 8): capas del lecho y vegetación
+  filterGravel_m: 0.25, filterSand_m: 0.20, filterSoil_m: 0.27,
+  filterPlant: 'Typha (enea)',
   // Bombeo
   pumpHead_m: 8,
   pumpEfficiency: 0.55,
@@ -107,6 +110,9 @@ export function derive(s = S) {
     coag_kgh, coagSol_Lh, poly_kgh, polySol_Lh, air_m3h, pumpHyd_kW, primary_kgd, uasbSludge_kgd,
     totalSS_kgd, purge_m3d, thick_m3d, cake_kgd, cake_m3d, codOut,
     clarSurfaceLoad_mh: Q_m3h / clarArea,
+    // Fase 8 · clarificadores: carga sobre el vertedero perimetral (canaleta a R − 0,2 m) y ángulo del cono del modelo
+    clarWeir_m3mh: Q_m3h / (Math.PI * (s.clarD_m - 0.4)),
+    clarConeAngle_deg: (Math.atan(s.clarConeH_m / (s.clarD_m / 2 - 0.09)) * 180) / Math.PI,
     // Fase 7 · detalle técnico UASB (por reactor, reparto equitativo, Ø 2,0 m y 10 m³) y MBBR (20 m³)
     uasbVup_mh: Q_m3h / DESIGN.uasbCount / (Math.PI * 1.0 ** 2),
     uasbOlr_kgm3d: (Q_m3d / DESIGN.uasbCount) * codUasbIn / 1000 / 10,
@@ -144,6 +150,7 @@ export const UNIT_FACTS: Partial<Record<UnitId, Fact[]>> = {
   ],
   clar1: [
     f('clarSL', 'Carga superficial', 'Surface loading', D.clarSurfaceLoad_mh, 'm/h', 2, 'C', 'Q / área Ø2,2 m', 'Q / Ø2.2 m area'),
+    f('weir', 'Carga sobre vertedero', 'Weir loading', D.clarWeir_m3mh, 'm³/m·h', 2, 'C', 'Q / perímetro de la canaleta (Ø 1,8 m)', 'Q / launder perimeter (Ø 1.8 m)'),
     f('primSS', 'Lodo primario', 'Primary sludge', D.primary_kgd, 'kg SS/d', 1, 'C', '0,6 kg SS/m³ (S) × 28,8 m³/d', '0.6 kg SS/m³ (S) × 28.8 m³/d'),
   ],
   pump: [
@@ -165,7 +172,11 @@ export const UNIT_FACTS: Partial<Record<UnitId, Fact[]>> = {
     f('salr', 'Carga superficial DQO', 'Surface COD load', D.mbbrSalr_gm2d, 'g/m²·d', 1, 'C', 'DQO de entrada × Q / superficie', 'inlet COD × Q / surface'),
     f('codOut', 'DQO estimada a la salida', 'Estimated outlet COD', D.codOut, 'mg/L', 0, 'C', 'remociones supuestas en cadena', 'chained assumed removals'),
   ],
-  filtro: [f('fhl', 'Carga hidráulica', 'Hydraulic loading', D.filterHydLoad_md, 'm/d', 2, 'C', '28,8 m³/d / 45 m² (S)', '28.8 m³/d / 45 m² (S)')],
+  filtro: [
+    f('fhl', 'Carga hidráulica', 'Hydraulic loading', D.filterHydLoad_md, 'm/d', 2, 'C', '28,8 m³/d / 45 m² (S)', '28.8 m³/d / 45 m² (S)'),
+    f('fRem', 'Remoción DQO', 'COD removal', S.codRemFilter * 100, '%', 0, 'S', 'pulimento típico en lecho plantado', 'typical polishing in planted bed'),
+    f('fOut', 'DQO a la salida', 'Outlet COD', D.codFinal, 'mg/L', 0, 'C', 'remociones supuestas en cadena', 'chained assumed removals'),
+  ],
   thick: [
     f('ssTot', 'Sólidos a espesar', 'Solids to thicken', D.totalSS_kgd, 'kg SS/d', 1, 'C', 'primario + UASB + CL-201', 'primary + UASB + CL-201'),
     f('purge', 'Purga al 2 %', 'Purge at 2 %', D.purge_m3d, 'm³/d', 2, 'C', 'SS / 20 kg/m³', 'SS / 20 kg/m³'),

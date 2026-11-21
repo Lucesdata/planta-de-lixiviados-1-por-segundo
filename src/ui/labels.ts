@@ -65,6 +65,15 @@ const NOTES: Partial<Record<LblId, Note[]>> = {
     { unit: 'uasb2', key: 'tBlanket', text: l => l === 'es' ? `Manto de lodo · ascenso ${n1(D7.uasbVup_mh, 2, l)} m/h · C` : `Sludge blanket · upflow ${n1(D7.uasbVup_mh, 2, l)} m/h · C` },
     { unit: 'uasb2', key: 'tBed', text: l => l === 'es' ? `Lecho granular · COV ${n1(D7.uasbOlr_kgm3d, 1, l)} kg DQO/m³·d · C` : `Granular bed · OLR ${n1(D7.uasbOlr_kgm3d, 1, l)} kg COD/m³·d · C` },
   ],
+  clar1: clarNotes('clar1', D7.primary_kgd, 'C'),
+  clar2: clarNotes('clar2', S.clar2Sludge_kgd, 'S'),
+  filtro: [
+    { unit: 'filtro', key: 'tDist', text: l => l === 'es' ? `Distribución perforada · ${n1(D7.filterHydLoad_md, 2, l)} m/d · C` : `Perforated distribution · ${n1(D7.filterHydLoad_md, 2, l)} m/d · C` },
+    { unit: 'filtro', key: 'tReeds', text: l => l === 'es' ? `${S.filterPlant} · remoción DQO ${n1(S.codRemFilter * 100, 0, l)} % · S` : `${S.filterPlant} · COD removal ${n1(S.codRemFilter * 100, 0, l)} % · S` },
+    { unit: 'filtro', key: 'tLayers', text: l => l === 'es' ? `Suelo ${n1(S.filterSoil_m, 2, l)} · arena ${n1(S.filterSand_m, 2, l)} · grava ${n1(S.filterGravel_m, 2, l)} m · S` : `Soil ${n1(S.filterSoil_m, 2, l)} · sand ${n1(S.filterSand_m, 2, l)} · gravel ${n1(S.filterGravel_m, 2, l)} m · S` },
+    { unit: 'filtro', key: 'tDrain', text: l => l === 'es' ? 'Dren inferior perforado' : 'Perforated underdrain' },
+    { unit: 'filtro', key: 'tOutlet', text: l => l === 'es' ? `Salida con nivel regulable · DQO ${n1(D7.codFinal, 0, l)} mg/L · C` : `Adjustable-level outlet · COD ${n1(D7.codFinal, 0, l)} mg/L · C` },
+  ],
   mbbr: [
     { unit: 'mbbr', key: 'tMedia', text: l => l === 'es' ? `Soportes PEAD · llenado ${n1(S.mbbrFill * 100, 0, l)} % · ${n1(D7.mbbrArea_m2, 0, l)} m² · S/C` : `HDPE carriers · ${n1(S.mbbrFill * 100, 0, l)} % fill · ${n1(D7.mbbrArea_m2, 0, l)} m² · S/C` },
     { unit: 'mbbr', key: 'tAir', text: l => l === 'es' ? `Difusores de fondo · ${n1(D7.air_m3h, 0, l)} Nm³/h · C` : `Bottom diffusers · ${n1(D7.air_m3h, 0, l)} Nm³/h · C` },
@@ -74,6 +83,14 @@ const NOTES: Partial<Record<LblId, Note[]>> = {
   ],
 };
 const NH = 18;
+function clarNotes(unit: UnitId, sludge: number, cls: 'S' | 'C'): Note[] {
+  return [
+    { unit, key: 'tFeed', text: l => l === 'es' ? 'Campana central de alimentación (deflector)' : 'Central feedwell (baffle)' },
+    { unit, key: 'tWeir', text: l => l === 'es' ? `Vertedero dentado · ${n1(D7.clarWeir_m3mh, 2, l)} m³/m·h · C` : `V-notch weir · ${n1(D7.clarWeir_m3mh, 2, l)} m³/m·h · C` },
+    { unit, key: 'tCone', text: l => l === 'es' ? `Cono ${n1(D7.clarConeAngle_deg, 0, l)}° (S) · carga superficial ${n1(D7.clarSurfaceLoad_mh, 2, l)} m/h · C` : `Cone ${n1(D7.clarConeAngle_deg, 0, l)}° (S) · surface load ${n1(D7.clarSurfaceLoad_mh, 2, l)} m/h · C` },
+    { unit, key: 'tPurge', text: l => l === 'es' ? `Purga de lodo · ${n1(sludge, 1, l)} kg SS/d · ${cls}` : `Sludge purge · ${n1(sludge, 1, l)} kg SS/d · ${cls}` },
+  ];
+}
 
 interface Focus { id: LblId; div: HTMLElement; t: HTMLElement; n: HTMLElement; stem: SVGLineElement; dot: SVGCircleElement; w: number; wLang: Lang | null }
 interface Marker { id: LblId; stageIdx: number; div: HTMLElement }
