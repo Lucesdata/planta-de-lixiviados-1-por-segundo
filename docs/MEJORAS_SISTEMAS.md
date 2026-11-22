@@ -43,7 +43,7 @@ La geometría 3D de estos equipos ya era detallada (sello hidráulico, arrestall
 - **Lodos:**
   - Espesador ES-101: carga de sólidos de 6,3 kg SS/m²·d (C), espesado al 5 % (S).
   - Lecho de secado LS-101: 28 m², torta al 25 % (S), retiro cada 40 días (C) y carga del lecho de 370 kg SS/m²·año (C).
-  - Esa carga del lecho supera los valores habituales de diseño (≈100–200 kg/m²·año para lechos descubiertos). Es una señal del cálculo con los supuestos actuales, no se ocultó: queda como punto de revisión del ensayo.
+  - Esa carga supera los valores habituales de diseño (≈100–200 kg/m²·año). **Decisión del usuario:** se mantiene el lecho pequeño (7 × 4 m) porque la planta es supuesta y prima cómo se ve en la animación. Agrandarlo exigiría sacarlo del lazo vial o añadir una segunda celda. El cálculo sigue visible en la ficha como dato C; no es un dimensionamiento.
 - **Biogás (QB-201):** la antorcha trabaja al 81 % de su capacidad (C), con 65 % de CH₄ (S). Notas: pote de condensado, sello hidráulico y arrestallamas.
 - **Balance de masa por etapa:** función `massBalance()` en `assumptions.ts`. Tabla en `docs/BALANCE.md`. Comprobación nueva `(n)` en `npm test`: el balance es monótono, encadenado y coherente con la DQO final, los SST finales y la carga evitada del panel de impacto.
 
