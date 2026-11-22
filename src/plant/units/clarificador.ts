@@ -61,6 +61,14 @@ function createClarifier(spec: UnitSpec, o: ClarOpts): PlantUnit {
   b.add(lathe([[R - t, y1 - 0.14], [R - 0.2, y1 - 0.14], [R - 0.2, y1 - 0.03]], 0.01, 48), MAT.steelDark);
   b.add(cyl(0.28, 0.85, 32, 0.28, true), MAT.steel, T(0, y1 - 0.33, 0));
   b.add(rbox(2 * R + 0.1, 0.09, 0.16, 0.02), MAT.steelBlue, T(0, y1 + 0.05, 0));
+  // Fase 8 · vertedero dentado (triangular) en el borde de la canaleta, deflector de espumas y baranda del puente
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * Math.PI * 2;
+    b.add(rbox(0.06, 0.07, 0.012, 0.003), MAT.steelDark, T(Math.sin(a) * (R - 0.2), y1 - 0.0, Math.cos(a) * (R - 0.2), 0, a, 0));
+  }
+  b.add(cyl(R - 0.3, 0.22, 40, R - 0.3, true), MAT.steel, T(0, y1 - 0.2, 0));
+  for (const z of [-0.08, 0.08]) b.rod(new THREE.Vector3(-R, y1 + 0.55, z), new THREE.Vector3(R, y1 + 0.55, z), 0.016, MAT.rail, 6);
+  for (const x of [-R + 0.05, 0, R - 0.05]) for (const z of [-0.08, 0.08]) b.rod(new THREE.Vector3(x, y1 + 0.1, z), new THREE.Vector3(x, y1 + 0.55, z), 0.014, MAT.rail, 6);
 
   // Boquillas: entrada (oeste, cota baja del cilindro) y salida por rebose (este, cerca del borde)
   const pin = nozzle(b, new THREE.Vector3(-R + 0.02, o.inY, 0), new THREE.Vector3(-1, 0, 0), 0.18);
@@ -119,6 +127,11 @@ function createClarifier(spec: UnitSpec, o: ClarOpts): PlantUnit {
     focus: new THREE.Vector3(0, (yApex + y1) / 2, 0),
     core: new THREE.Vector3(0, (yc + y1) / 2, 0),
     in: pin, out: pout,
+    // Fase 8 · puntos para notas técnicas
+    tFeed: new THREE.Vector3(0, y1 - 0.05, 0),
+    tWeir: new THREE.Vector3(Math.sin(phi) * (R - 0.2), y1, Math.cos(phi) * (R - 0.2)),
+    tCone: new THREE.Vector3(Math.sin(phi) * rAt(yApex + 0.5), yApex + 0.5, Math.cos(phi) * rAt(yApex + 0.5)),
+    tPurge: new THREE.Vector3(0, yApex - 0.27, 0.3),
   };
   if (sludgePort) anchors.sludge = sludgePort;
 

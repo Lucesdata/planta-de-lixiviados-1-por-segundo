@@ -60,10 +60,37 @@ const n1 = (x: number, d: number, lang: Lang) => x.toLocaleString(lang === 'es' 
 type Note = { unit: UnitId; key: string; text: (l: Lang) => string };
 const NOTES: Partial<Record<LblId, Note[]>> = {
   'uasb-group': [
+    { unit: 'flare', key: 'tip', text: l => l === 'es' ? `Antorcha · ${n1(D7.flareUse_pct, 0, l)} % de su capacidad · CH₄ ${n1(S.ch4Fraction * 100, 0, l)} % (S)` : `Flare · ${n1(D7.flareUse_pct, 0, l)} % of capacity · CH₄ ${n1(S.ch4Fraction * 100, 0, l)} % (S)` },
+    { unit: 'flare', key: 'in', text: l => l === 'es' ? 'Pote de condensado · sello hidráulico · arrestallamas' : 'Condensate pot · water seal · flame arrester' },
     { unit: 'uasb2', key: 'tGas', text: l => l === 'es' ? `Biogás → antorcha · ${n1(D7.biogas_m3h, 1, l)} m³/h · C` : `Biogas → flare · ${n1(D7.biogas_m3h, 1, l)} m³/h · C` },
     { unit: 'uasb2', key: 'tGls', text: l => l === 'es' ? `Separador trifásico gas·líquido·sólido · ${S.uasbSepAngle_deg}° · S` : `Three-phase separator · ${S.uasbSepAngle_deg}° · S` },
     { unit: 'uasb2', key: 'tBlanket', text: l => l === 'es' ? `Manto de lodo · ascenso ${n1(D7.uasbVup_mh, 2, l)} m/h · C` : `Sludge blanket · upflow ${n1(D7.uasbVup_mh, 2, l)} m/h · C` },
     { unit: 'uasb2', key: 'tBed', text: l => l === 'es' ? `Lecho granular · COV ${n1(D7.uasbOlr_kgm3d, 1, l)} kg DQO/m³·d · C` : `Granular bed · OLR ${n1(D7.uasbOlr_kgm3d, 1, l)} kg COD/m³·d · C` },
+  ],
+  homog: [
+    { unit: 'homog', key: 'core', text: l => l === 'es' ? `Ecualización · 20 m³ (B) · TRH ${n1(20 / D7.Q_m3h, 1, l)} h · C` : `Equalization · 20 m³ (B) · HRT ${n1(20 / D7.Q_m3h, 1, l)} h · C` },
+    { unit: 'homog', key: 'return', text: l => l === 'es' ? 'Retorno del drenado del lecho de secado' : 'Drying-bed drainage return' },
+  ],
+  coag: [
+    { unit: 'coag', key: 'core', text: l => l === 'es' ? `Mezcla rápida · G ${n1(S.coagG_s, 0, l)} s⁻¹ (S) · ${n1(D7.coagPower_W, 0, l)} W · C` : `Rapid mix · G ${n1(S.coagG_s, 0, l)} s⁻¹ (S) · ${n1(D7.coagPower_W, 0, l)} W · C` },
+    { unit: 'coag', key: 'dose', text: l => l === 'es' ? `FeCl₃ ${n1(S.coagDose_mgL, 0, l)} mg/L (S) · ${n1(D7.coagSol_Lh, 2, l)} L/h · C` : `FeCl₃ ${n1(S.coagDose_mgL, 0, l)} mg/L (S) · ${n1(D7.coagSol_Lh, 2, l)} L/h · C` },
+  ],
+  floc: [
+    { unit: 'floc', key: 'core', text: l => l === 'es' ? `Mezcla lenta · G ${n1(S.flocG_s, 0, l)} s⁻¹ (S) · TRH ${n1(D7.flocHrt_min, 0, l)} min · C` : `Slow mix · G ${n1(S.flocG_s, 0, l)} s⁻¹ (S) · HRT ${n1(D7.flocHrt_min, 0, l)} min · C` },
+    { unit: 'floc', key: 'dose', text: l => l === 'es' ? `Polímero ${n1(S.polyDose_mgL, 0, l)} mg/L (S) · ${n1(D7.polySol_Lh, 1, l)} L/h al 0,1 % · C` : `Polymer ${n1(S.polyDose_mgL, 0, l)} mg/L (S) · ${n1(D7.polySol_Lh, 1, l)} L/h at 0.1 % · C` },
+  ],
+  clar1: [
+    ...clarNotes('clar1', D7.primary_kgd, 'C', false),
+    { unit: 'thick', key: 'core', text: l => l === 'es' ? `Espesador · ${n1(D7.thickSlr_kgm2d, 1, l)} kg SS/m²·d · al 5 % (S)` : `Thickener · ${n1(D7.thickSlr_kgm2d, 1, l)} kg SS/m²·d · to 5 % (S)` },
+    { unit: 'sludge', key: 'core', text: l => l === 'es' ? `Lecho de secado ${S.bedArea_m2} m² · torta 25 % (S) · retiro cada ${n1(D7.truckDays, 0, l)} d · C` : `Drying bed ${S.bedArea_m2} m² · 25 % cake (S) · pick-up every ${n1(D7.truckDays, 0, l)} d · C` },
+  ],
+  clar2: clarNotes('clar2', S.clar2Sludge_kgd, 'S'),
+  filtro: [
+    { unit: 'filtro', key: 'tDist', text: l => l === 'es' ? `Distribución perforada · ${n1(D7.filterHydLoad_md, 2, l)} m/d · C` : `Perforated distribution · ${n1(D7.filterHydLoad_md, 2, l)} m/d · C` },
+    { unit: 'filtro', key: 'tReeds', text: l => l === 'es' ? `${S.filterPlant} · remoción DQO ${n1(S.codRemFilter * 100, 0, l)} % · S` : `${S.filterPlant} · COD removal ${n1(S.codRemFilter * 100, 0, l)} % · S` },
+    { unit: 'filtro', key: 'tLayers', text: l => l === 'es' ? `Suelo ${n1(S.filterSoil_m, 2, l)} · arena ${n1(S.filterSand_m, 2, l)} · grava ${n1(S.filterGravel_m, 2, l)} m · S` : `Soil ${n1(S.filterSoil_m, 2, l)} · sand ${n1(S.filterSand_m, 2, l)} · gravel ${n1(S.filterGravel_m, 2, l)} m · S` },
+    { unit: 'filtro', key: 'tDrain', text: l => l === 'es' ? 'Dren inferior perforado' : 'Perforated underdrain' },
+    { unit: 'filtro', key: 'tOutlet', text: l => l === 'es' ? `Salida con nivel regulable · DQO ${n1(D7.codFinal, 0, l)} mg/L · C` : `Adjustable-level outlet · COD ${n1(D7.codFinal, 0, l)} mg/L · C` },
   ],
   mbbr: [
     { unit: 'mbbr', key: 'tMedia', text: l => l === 'es' ? `Soportes PEAD · llenado ${n1(S.mbbrFill * 100, 0, l)} % · ${n1(D7.mbbrArea_m2, 0, l)} m² · S/C` : `HDPE carriers · ${n1(S.mbbrFill * 100, 0, l)} % fill · ${n1(D7.mbbrArea_m2, 0, l)} m² · S/C` },
@@ -74,6 +101,14 @@ const NOTES: Partial<Record<LblId, Note[]>> = {
   ],
 };
 const NH = 18;
+function clarNotes(unit: UnitId, sludge: number, cls: 'S' | 'C', feed = true): Note[] {
+  return [
+    ...(feed ? [{ unit, key: 'tFeed', text: (l: Lang) => l === 'es' ? 'Campana central de alimentación (deflector)' : 'Central feedwell (baffle)' }] : []),
+    { unit, key: 'tWeir', text: l => l === 'es' ? `Vertedero dentado · ${n1(D7.clarWeir_m3mh, 2, l)} m³/m·h · C` : `V-notch weir · ${n1(D7.clarWeir_m3mh, 2, l)} m³/m·h · C` },
+    { unit, key: 'tCone', text: l => l === 'es' ? `Cono ${n1(D7.clarConeAngle_deg, 0, l)}° (S) · carga superficial ${n1(D7.clarSurfaceLoad_mh, 2, l)} m/h · C` : `Cone ${n1(D7.clarConeAngle_deg, 0, l)}° (S) · surface load ${n1(D7.clarSurfaceLoad_mh, 2, l)} m/h · C` },
+    { unit, key: 'tPurge', text: l => l === 'es' ? `Purga de lodo · ${n1(sludge, 1, l)} kg SS/d · ${cls}` : `Sludge purge · ${n1(sludge, 1, l)} kg SS/d · ${cls}` },
+  ];
+}
 
 interface Focus { id: LblId; div: HTMLElement; t: HTMLElement; n: HTMLElement; stem: SVGLineElement; dot: SVGCircleElement; w: number; wLang: Lang | null }
 interface Marker { id: LblId; stageIdx: number; div: HTMLElement }

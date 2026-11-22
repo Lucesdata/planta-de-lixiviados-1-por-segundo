@@ -6,8 +6,9 @@
 import * as THREE from 'three';
 import type { PlantUnit } from '../types';
 import { UNIT_BY_ID, type UnitSpec } from '../layout';
-import { MAT, PALETTE, createLiquidMaterial } from '../../scene/materials';
-import { Batcher, createRoot, createStatusLamp, finalizeUnit, hash01, outlineBox, rbox, T } from './common';
+import { MAT, MAT2, PALETTE, createLiquidMaterial } from '../../scene/materials';
+import { Batcher, createRoot, createStatusLamp, cyl, finalizeUnit, hash01, outlineBox, rbox, T } from './common';
+import { S } from '../assumptions';
 
 export function createPhytoFilter(spec: UnitSpec = UNIT_BY_ID.filtro): PlantUnit {
   const W = spec.size.w!, H = spec.size.h, L = spec.size.l!;
@@ -40,6 +41,28 @@ export function createPhytoFilter(spec: UnitSpec = UNIT_BY_ID.filtro): PlantUnit
   b.add(rbox(0.5, 0.35, 0.7, 0.03), MAT.concreteDark, T(-W / 2 + t + 0.3, yBed + 0.06, 0));
   b.rod(new THREE.Vector3(-W / 2 + 0.02, 0.4, 0), new THREE.Vector3(-W / 2 - 0.2, 0.4, 0), 0.085, MAT.steel, 14);
   b.rod(new THREE.Vector3(-W / 2 - 0.245, 0.4, 0), new THREE.Vector3(-W / 2 - 0.2, 0.4, 0), 0.14, MAT.steel, 18);
+  // Fase 8 · corte didáctico del lecho en el muro sur (cara hacia la cámara): capas supuestas grava · arena · suelo
+  const zf = L / 2 + 0.012, cw = 2.6, cx = 0.9;
+  const layers: [number, number, THREE.Material][] = [
+    [0, S.filterGravel_m, MAT.gravel],
+    [S.filterGravel_m, S.filterSand_m, MAT2.sand],
+    [S.filterGravel_m + S.filterSand_m, S.filterSoil_m, MAT.soil],
+  ];
+  for (const [y0, h, m] of layers) b.add(rbox(cw, h - 0.006, 0.02, 0.004), m, T(cx, y0 + h / 2, zf));
+  b.add(rbox(cw + 0.08, 0.035, 0.035, 0.005), MAT.concreteDark, T(cx, yBed + 0.02, zf + 0.005));
+  for (const x of [cx - cw / 2 - 0.02, cx + cw / 2 + 0.02]) b.add(rbox(0.035, yBed, 0.035, 0.005), MAT.concreteDark, T(x, yBed / 2, zf + 0.005));
+  // Dren inferior perforado (visible en el corte) que corre hacia la caja de salida
+  const yDr = S.filterGravel_m * 0.45;
+  b.rod(new THREE.Vector3(W / 2 - t - 0.2, yDr, L / 2 - t - 0.25), new THREE.Vector3(-W / 2 + t + 0.3, yDr, L / 2 - t - 0.25), 0.055, MAT.steelDark, 10);
+  b.add(cyl(0.06, 0.025, 14), MAT.steel, T(cx, yDr, zf + 0.01, Math.PI / 2, 0, 0));
+  // Salida con nivel regulable: tubo vertical en la caja colectora
+  b.rod(new THREE.Vector3(-W / 2 + t + 0.3, yBed - 0.1, 0), new THREE.Vector3(-W / 2 + t + 0.3, yBed + 0.32, 0), 0.05, MAT.offWhite, 10);
+  // Piezómetros de observación (2) con tapa
+  for (const [px, pz] of [[1.8, -1.3], [-1.6, 1.2]] as const) {
+    b.rod(new THREE.Vector3(px, 0.1, pz), new THREE.Vector3(px, yBed + 0.35, pz), 0.04, MAT.offWhite, 10);
+    b.add(cyl(0.055, 0.05, 12), MAT.steelBlue, T(px, yBed + 0.37, pz));
+  }
+
   const meshes = b.build(root);
 
   // Lámina de agua (avanza de este a oeste)
@@ -104,6 +127,12 @@ export function createPhytoFilter(spec: UnitSpec = UNIT_BY_ID.filtro): PlantUnit
       core: new THREE.Vector3(0, yBed + 0.1, 0),
       in: new THREE.Vector3(xIn, 1.1, 0),
       out: new THREE.Vector3(-W / 2 - 0.245, 0.4, 0),
+      // Fase 8 · puntos para notas técnicas
+      tLayers: new THREE.Vector3(cx - cw / 2 + 0.3, S.filterGravel_m + S.filterSand_m * 0.5, zf),
+      tDrain: new THREE.Vector3(cx, yDr, zf),
+      tDist: new THREE.Vector3(1.2, yD, 0),
+      tReeds: new THREE.Vector3(2.4, yBed + 1.0, 1.4),
+      tOutlet: new THREE.Vector3(-W / 2 + t + 0.3, yBed + 0.32, 0),
     },
     radius: Math.hypot(W, L) / 2,
     localBox: { min: [-W / 2, 0, -L / 2], max: [W / 2, H + 1.2, L / 2] },

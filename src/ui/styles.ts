@@ -440,6 +440,19 @@ html:not(.film) .top .origin{white-space:normal;max-width:262px;font-size:10.5px
 .v3 .dtbl .dl{color:var(--ui-text-muted)}
 .v3 .dtbl .db{color:#8794a6;font-size:12px}
 
+/* Balance de masa (vista Análisis) */
+.v3 .bal3{left:${GRID.left.x1 + 12}px;top:610px;width:560px;display:flex;flex-direction:column}
+.v3 .bal3 .cls{margin-left:auto;margin-right:2px}
+.v3 .btbl{padding:0 14px 6px}
+.v3 .br{display:grid;grid-template-columns:1fr 150px 62px 56px;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #eef1f5;font-size:12px}
+.v3 .br > span:nth-child(n+3){text-align:right}
+.v3 .bh{font-size:11px;color:var(--ui-text-muted);font-weight:600;border-bottom:1px solid var(--ui-border)}
+.v3 .bn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v3 .bn b{font-size:11px;color:var(--ui-primary);font-weight:600}
+.v3 .bv{position:relative;padding-bottom:3px}
+.v3 .bv .bb{position:absolute;left:0;bottom:0;height:2px;border-radius:1px;background:var(--ui-primary);opacity:.55}
+.v3 .bt{font-weight:650;border-bottom:none}
+
 /* Subtítulo y cursor */
 .v3 .caption span{font-size:16px;color:var(--ui-text);background:var(--ui-surface);border:1px solid var(--ui-border);border-radius:10px;padding:7px 16px;box-shadow:var(--ui-shadow)}
 .v3 .caption b{background:var(--ui-primary);border-radius:6px;font-size:11.5px;letter-spacing:.02em;font-weight:600}

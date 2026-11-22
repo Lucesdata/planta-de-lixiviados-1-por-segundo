@@ -9,7 +9,7 @@ import { buildKpis, buildTracker } from '../sim/selectors';
 import { fmtClock } from '../sim/signals';
 import { STAGE_WINDOWS } from '../motion/timeline';
 import { UNIT_BY_ID } from '../plant/layout';
-import { UNIT_FACTS, S } from '../plant/assumptions';
+import { UNIT_FACTS, S, massBalance } from '../plant/assumptions';
 import { impactAt } from './impact';
 import { tr, type Lang, type I18nKey } from './i18n';
 import { el, setClass, setStyle, setText } from './styles';
@@ -481,5 +481,47 @@ export class DocsPanel {
       }
     }
     void S;
+  }
+}
+
+/* ---------- Análisis: balance de masa por etapa (C) ---------- */
+export class BalanceCard {
+  readonly root: HTMLElement;
+  private cap: HTMLElement; private body: HTMLElement; private foot: HTMLElement; private lang: Lang | null = null;
+  constructor(parent: HTMLElement, onClose: () => void) {
+    this.root = el('aside', 'panel3 bal3', parent);
+    const hd = el('div', 'p3hd', this.root);
+    this.cap = el('div', 'p3t', hd);
+    el('span', 'cls C', hd, 'C');
+    iconBtn(hd, 'sm pe', 'close', 'Cerrar', onClose);
+    this.body = el('div', 'btbl', this.root);
+    this.foot = el('div', 'p3foot', this.root);
+  }
+  update(lang: Lang): void {
+    if (lang === this.lang) return;
+    this.lang = lang;
+    setText(this.cap, L(lang, 'Balance de masa por etapa', 'Mass balance by stage'));
+    setText(this.foot, L(lang, 'Cálculo con remociones supuestas (S); no son mediciones. Detalle en docs/BALANCE.md.', 'Calculated with assumed removals (S); not measurements.'));
+    const b = this.body; b.textContent = '';
+    const head = el('div', 'br bh', b);
+    for (const h of [L(lang, 'Etapa', 'Stage'), 'DQO mg/L', L(lang, 'kg DQO/d', 'kg COD/d'), 'SST mg/L']) el('span', '', head, h);
+    const B = massBalance(), c0 = B[0].codIn;
+    for (const r of B) {
+      const row = el('div', 'br', b);
+      const n = el('span', 'bn', row);
+      el('b', 'mono', n, r.tag);
+      el('span', '', n, ` ${lang === 'es' ? r.es : r.en}`);
+      const cv = el('span', 'bv', row);
+      el('span', 'mono', cv, `${fmt(r.codIn, 0, lang)} → ${fmt(r.codOut, 0, lang)}`);
+      const bar = el('i', 'bb', cv); bar.style.width = `${((100 * r.codOut) / c0).toFixed(1)}%`;
+      el('span', 'mono', row, r.codKgd > 0 ? fmt(r.codKgd, 1, lang) : '—');
+      el('span', 'mono', row, `${fmt(r.tssOut, 0, lang)}`);
+    }
+    const last = B[B.length - 1];
+    const tot = el('div', 'br bt', b);
+    el('span', '', tot, 'Total');
+    el('span', 'mono', tot, `${fmt(c0, 0, lang)} → ${fmt(last.codOut, 0, lang)}`);
+    el('span', 'mono', tot, fmt(B.reduce((a, r) => a + r.codKgd, 0), 1, lang));
+    el('span', 'mono', tot, `${fmt(B[0].tssIn, 0, lang)} → ${fmt(last.tssOut, 0, lang)}`);
   }
 }

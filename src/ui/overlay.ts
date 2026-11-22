@@ -15,7 +15,7 @@ import { LabelLayer } from './labels';
 import { CompareCard } from './impact';
 import type { CamMode, ControlsState } from './controls';
 import {
-  DocsPanel, EventDrawer, Header, LAYER_KEYS, OpsPanel, Popover, Rail, Timeline, Toolbar, defaultUi,
+  BalanceCard, DocsPanel, EventDrawer, Header, LAYER_KEYS, OpsPanel, Popover, Rail, Timeline, Toolbar, defaultUi,
   type ShellHandlers, type UiState, type View,
 } from './shell';
 
@@ -51,6 +51,7 @@ export class Overlay {
   private timeline: Timeline;
   private events: EventDrawer;
   private docs: DocsPanel;
+  private balance: BalanceCard;
   private layersPop: Popover;
   private settingsPop: Popover;
   private split: SplitCard;
@@ -86,6 +87,7 @@ export class Overlay {
     this.detail = new DetailPanel(this.root, film, () => { ui.inspector = false; });
     this.split = new SplitCard(this.root, 788);
     this.compare = new CompareCard(this.root, 788);
+    this.balance = new BalanceCard(this.root, () => { ui.analysis = false; if (ui.view === 'analysis') ui.view = 'plant'; });
     this.docs = new DocsPanel(this.root, () => { ui.docs = false; if (ui.view === 'docs') ui.view = 'plant'; });
 
     const cw = el('div', 'caption', this.root);
@@ -177,6 +179,8 @@ export class Overlay {
     this.ops.update(state, lang);
     setClass(this.events.root, 'closed', imm || !ui.events);
     if (ui.events && !imm) this.events.update(state, lang);
+    setClass(this.balance.root, 'closed', imm || !ui.analysis);
+    if (ui.analysis) this.balance.update(lang);
     setClass(this.docs.root, 'closed', imm || !ui.docs);
     if (ui.docs) this.docs.update(lang);
 
@@ -206,7 +210,7 @@ export class Overlay {
     });
 
     // Subtítulo narrativo
-    if (state.caption && !imm) {
+    if (state.caption && !imm && !ui.analysis) {
       setStyle(this.caption.wrap, 'display', 'flex');
       setText(this.caption.b, state.phase === 'idle' ? (lang === 'es' ? 'Inicio' : 'Start') : `${tr('phase', lang)} ${state.phase}`);
       setText(this.caption.s, state.caption[lang]);
